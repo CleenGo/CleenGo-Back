@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsStrongPassword,
   IsUrl,
@@ -69,6 +70,7 @@ export abstract class RegisterUserDto {
     example: 'https://example.com/profile.jpg',
     description: 'URL de la imagen de perfil del usuario',
   })
+  @IsOptional()
   @IsUrl()
   profileImgUrl: string;
 
