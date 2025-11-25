@@ -16,6 +16,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { getTypeOrmOptions } from './config/typeorm.config';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { UserModule } from './user/user.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { UserModule } from './user/user.module';
     CategoriesModule,
     FileUploadModule,
     UserModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}
