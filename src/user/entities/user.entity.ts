@@ -18,10 +18,10 @@ export abstract class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ nullable: false })
+  @Column({ nullable: true })
   name: string;
 
-  @Column({ nullable: false })
+  @Column({ nullable: true })
   surname: string;
 
   @Column({ unique: true, nullable: false })
@@ -30,13 +30,13 @@ export abstract class User {
   @Column({ nullable: false })
   passwordUrl: string;
 
-  @Column({ type: 'date', nullable: false })
+  @Column({ type: 'date', nullable: true })
   birthDate: Date;
 
   @Column({ nullable: true })
   profileImgUrl: string;
 
-  @Column({ nullable: false })
+  @Column({ nullable: true })
   phone: string;
 
   @Column({

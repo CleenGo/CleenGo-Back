@@ -18,17 +18,7 @@ async function bootstrap() {
     .setTitle('CleenGo API')
     .setDescription('Documentación de la API de CleenGo')
     .setVersion('1.0.0')
-    .addBearerAuth
-    // {
-    //   type: 'http',
-    //   scheme: 'bearer',
-    //   bearerFormat: 'JWT',
-    //   name: 'Authorization',
-    //   description: 'Ingrese el token JWT obtenido al iniciar sesión.',
-    //   in: 'header',
-    // },
-    // 'JWT-auth',
-    ()
+    .addBearerAuth()
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
