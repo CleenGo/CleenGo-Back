@@ -14,18 +14,18 @@ export class Review {
     @JoinColumn({name: 'rated_id'})
     ratedUser: User
 
-    @Column()
+    @Column({type: 'int', default: 0})
     rating: number
 
-    @Column()
+    @Column({type: 'text', nullable: true})
     comment: string
 
-    @Column()
+    @Column({type: 'text', nullable: true})
     imgUrl: string
 
-    @Column()
+    @Column({type: 'date', nullable: false})
     date: Date
 
-    @Column()
+    @Column({type: 'boolean', default: true})
     isActive: boolean
 }

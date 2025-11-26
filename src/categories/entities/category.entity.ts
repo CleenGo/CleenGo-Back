@@ -6,13 +6,16 @@ export class Category {
     @PrimaryGeneratedColumn('uuid')
     id: string
 
-    @Column()
+    @Column({
+        type: 'varchar',
+        length: 50
+    })
     name: string
 
     @OneToMany(() => Services, (service) => service.category)
     @JoinColumn({name: 'services_id'})
     services: Services[]
 
-    @Column()
+    @Column({type: 'boolean', default: true})
     isActive: boolean
 }

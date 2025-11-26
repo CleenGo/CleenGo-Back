@@ -29,19 +29,34 @@ export class Appointment {
   })
     services: Services[]
 
-    @Column()
+    @Column({type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: false,})
     price: number
 
-    @Column()
+    @Column({
+      type: 'text',
+      nullable: false
+    })
     addressUrl: string
 
-    @Column()
+    @Column({
+      type: 'date',
+      nullable: false
+    })
     date: Date
 
-    @Column()
+    @Column({
+      type:'varchar',
+      nullable: false
+    })
     startHour: string
 
-    @Column()
+    @Column({
+      type:'varchar',
+      nullable: true
+    })
     endHour: string
 
     @Column({type: 'enum',
@@ -50,6 +65,6 @@ export class Appointment {
     })
     status: AppointmentStatus
 
-    @Column()
+    @Column({type: 'boolean', default: true})
     isActive: boolean
 }

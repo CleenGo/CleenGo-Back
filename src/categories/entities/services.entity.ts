@@ -6,16 +6,16 @@ export class Services {
     @PrimaryGeneratedColumn('uuid')
     id: string
 
-    @Column()
+    @Column({type: 'varchar', length: 50, nullable: false,})
     name: string
 
-    @Column()
+    @Column({type: 'decimal', precision: 10, scale: 2, nullable: false,})
     unitaryPrice: number
 
     @ManyToOne(() => Category, (category) => category.services)
     @JoinColumn({ name: 'categoryId' })
     category: Category
 
-    @Column()
+    @Column({type: 'boolean', default: true})
     isActive: boolean
 }
