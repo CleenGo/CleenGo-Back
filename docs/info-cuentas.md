@@ -20,7 +20,7 @@
 
 | Concepto             | Dato                                     |
 | -------------------- | ---------------------------------------- |
-| **Usuario:**         | `cleengo-org` _(o el que tengan)_        |
+| **Usuario:**         | CleenGo                                  |
 | **Correo asociado:** | `cleengo65@gmail.com`                    |
 | **Contraseña:**      | cleengo123!                              |
 | **Repositorios:**    | `CleenGo-Front`, `CleenGo-Back`          |
