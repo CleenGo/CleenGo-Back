@@ -91,4 +91,9 @@ export class AuthController {
   ) {
     return this.authService.thirdPartyAuth(roleParam, body);
   }
+
+  //!--------AGREGAR ESTAS ACCIONES EN AUTH CONTROLLER Y SERVICE --------
+  //* 1. Como cliente quiero poder cambiar mi contraseña (módulo autenticación).
+  //* 2. Como cliente quiero poder recuperar mi contraseña si la olvido (módulo autenticación).
+  //* 3. Como cliente quiero poder cerrar sesión de manera segura (módulo de autenticación).
 }

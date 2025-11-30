@@ -221,32 +221,30 @@ export class AuthService {
   async thirdPartyAuth(roleParam: string, dto: ThirdPartyAuthDto) {
     const { accessToken, name, surname, phone, profileImgUrl } = dto;
 
-    // Validar token de Supabase
+    // 1. Validar token de Supabase
     const { data, error } = await this.supabaseClient.auth.getUser(accessToken);
 
     if (error || !data.user) {
-      throw new BadRequestException(`⚠️ Token inválido o expirado`);
+      throw new BadRequestException('⚠️ Token inválido o expirado');
     }
 
     const supabaseUser = data.user;
     const email = supabaseUser.email;
 
     if (!email) {
-      throw new BadRequestException(`⚠️ El usuario no tiene un email válido`);
+      throw new BadRequestException('⚠️ El usuario no tiene un email válido');
     }
 
-    // Normalizar rol para que coincida con el enum
+    // 2. Normalizar rol para que coincida con el enum
     let role: Role;
     if (roleParam === 'client') role = Role.CLIENT;
     else if (roleParam === 'provider') role = Role.PROVIDER;
-    else {
-      throw new BadRequestException(`⚠️ Rol inválido`);
-    }
+    else throw new BadRequestException('⚠️ Rol inválido');
 
-    // Buscar usuario en la DB
+    // 3. Buscar usuario en la DB por email
     let user = await this.userRepository.findOne({ where: { email } });
 
-    // FORMATEO DE CAMPOS
+    // 4. Formatear campos
     const formattedName =
       name ?? this.capitalize(supabaseUser.user_metadata?.name || 'Usuario');
 
@@ -258,7 +256,7 @@ export class AuthService {
 
     const finalPhone = phone ?? supabaseUser.user_metadata?.phone ?? null;
 
-    // si el usuario existe, verificar rol y hacer login
+    // 5. Si el usuario YA existe → solo login
     if (user) {
       if (user.role !== role) {
         throw new BadRequestException(
@@ -282,21 +280,47 @@ export class AuthService {
       };
     }
 
-    // si no existe, crear nuevo usuario
+    // 6. Si NO existe → crear nuevo usuario
     const newUser = this.userRepository.create({
       name: formattedName,
       surname: formattedSurname,
       email,
       passwordUrl: supabaseUser.id,
-      birthDate: new Date(), // La fecha que se registrará será la actual, podrá ser editada
+      birthDate: new Date(),
       profileImgUrl: finalImg,
       phone: finalPhone,
       role,
     });
 
-    user = await this.userRepository.save(newUser);
+    try {
+      user = await this.userRepository.save(newUser);
+    } catch (err: any) {
+      // Si falla por email duplicado (error 23505) → recuperamos el user y hacemos login
+      if (err.code === '23505') {
+        user = await this.userRepository.findOne({ where: { email } });
+        if (!user) throw err;
 
-    // JWT para usuarios nuevos
+        const payload = {
+          sub: user.id,
+          email: user.email,
+          role: user.role,
+        };
+
+        const jwtAccessToken = this.jwtService.sign(payload);
+        const { passwordUrl, ...safeUser } = user;
+
+        return {
+          message: '✅ Inicio de sesión por terceros exitoso',
+          accessToken: jwtAccessToken,
+          user: safeUser,
+        };
+      }
+
+      // Otro error de DB → lo propagamos
+      throw err;
+    }
+
+    // 7. JWT para usuarios nuevos
     const payload = {
       sub: user.id,
       email: user.email,

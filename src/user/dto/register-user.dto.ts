@@ -16,7 +16,7 @@ import { IsAdultDate } from 'src/decorators/is-adult-date.validator';
 import { MatchPassword } from 'src/decorators/match-password.decorator';
 import { Role } from 'src/enum/role.enum';
 
-export abstract class RegisterUserDto {
+export class RegisterUserDto {
   @ApiHideProperty()
   id: string;
 

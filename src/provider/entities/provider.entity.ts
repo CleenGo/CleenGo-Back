@@ -4,7 +4,6 @@ import { User } from 'src/user/entities/user.entity';
 import { Service } from 'src/categories/entities/services.entity';
 import { Suscription } from 'src/suscription/entities/suscription.entity';
 
-
 @ChildEntity()
 export class Provider extends User {
   @Column('text', { array: true, nullable: true })
@@ -18,7 +17,7 @@ export class Provider extends User {
 
   @ManyToMany(() => Service, (service) => service.providers)
   @JoinTable({
-    name: 'PROVIDER_SERVICES',
+    name: 'provider_services',
     joinColumn: {
       name: 'providerId',
       referencedColumnName: 'id',

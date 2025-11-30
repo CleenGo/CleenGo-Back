@@ -6,7 +6,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 
 import { AuthModule } from './auth/auth.module';
-import { ClientModule } from './client/client.module';
 import { ProviderModule } from './provider/provider.module';
 import { AdminModule } from './admin/admin.module';
 import { SuscriptionModule } from './suscription/suscription.module';
@@ -30,7 +29,6 @@ import { ReviewsModule } from './reviews/reviews.module';
     }),
 
     AuthModule,
-    ClientModule,
     ProviderModule,
     AdminModule,
     SuscriptionModule,
