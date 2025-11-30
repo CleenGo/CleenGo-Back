@@ -15,7 +15,7 @@ export class Appointment {
   @JoinColumn({ name: 'provider_id' })
   providerId: User;
 
-  @ManyToMany(() => Service)
+  @ManyToMany(() => Services)
   @JoinTable({
     name: 'appointment_services',
     joinColumn: {
@@ -27,7 +27,7 @@ export class Appointment {
       referencedColumnName: 'id',
     },
   })
-  services: Service[];
+  services: Services[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   price: number;
