@@ -1,7 +1,7 @@
 // src/provider/entities/provider.entity.ts
-import { ChildEntity, Column, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne } from 'typeorm';
+import { ChildEntity, Column, JoinColumn, JoinTable, ManyToMany, ManyToOne } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
-import { Service } from 'src/categories/entities/services.entity';
+import { Services } from 'src/categories/entities/services.entity';
 import { Suscription } from 'src/suscription/entities/suscription.entity';
 
 @ChildEntity()
@@ -15,21 +15,21 @@ export class Provider extends User {
   @Column({ type: 'text', nullable: true })
   about: string;
 
-  @ManyToMany(() => Service, (service) => service.providers)
+  @ManyToMany(() => Services)
   @JoinTable({
     name: 'provider_services',
     joinColumn: {
-      name: 'providerId',
-      referencedColumnName: 'id',
-    },
-    inverseJoinColumn: {
       name: 'serviceId',
       referencedColumnName: 'id',
     },
+    inverseJoinColumn: {
+      name: 'providerId',
+      referencedColumnName: 'id',
+    },
   })
-  services: Service[];
+  services: Services[];
 
-  @OneToOne(()=> Suscription, (Suscription)=> Suscription.provider)
+  @ManyToOne(()=> Suscription, (suscription) => suscription.providers)
   @JoinColumn({name: 'suscription_id'})
   suscription: Suscription
 }

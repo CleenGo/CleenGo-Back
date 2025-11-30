@@ -37,7 +37,6 @@ import { ReviewsModule } from './reviews/reviews.module';
     FileUploadModule,
     UserModule,
     ReviewsModule,
-    CategoriesModule,
   ],
 })
 export class AppModule {}

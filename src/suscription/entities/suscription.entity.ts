@@ -1,26 +1,21 @@
 import { Provider } from "src/provider/entities/provider.entity";
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
-import { Plan } from "./plan.entity";
+import { Column, Entity, JoinColumn, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity('suscription')
 export class Suscription {
-   @PrimaryGeneratedColumn('uuid')
-   id: string;
+    @PrimaryGeneratedColumn('uuid')
+    id: string
 
-   @ManyToOne(()=>Plan)
-   @JoinColumn({name: 'plan_id'})
-   plan: Plan;
+    @Column({type: 'varchar', length: 50, nullable: false,})
+    name: string
 
-   @OneToOne(()=>Provider, (provider) => provider.suscription)
-   @JoinColumn({name: 'provider_id'})
-   provider: Provider;
+    @Column({type: 'decimal', precision: 10, scale: 2, nullable: false,})
+    price: number
 
-   @Column({type: 'date', nullable: false})
-   startDate: Date;
-
-   @Column({type: 'boolean', default: false})
-   paymentStatus: boolean;
+    @OneToMany(()=> Provider, (provider) => provider.suscription)
+    @JoinColumn({name: 'providers_id'})
+    providers: Provider[]
     
-   @Column({type: 'boolean', default: true})
-   isActive: boolean;
+    @Column({type: 'boolean', default: true})
+    isActive: boolean
 }
