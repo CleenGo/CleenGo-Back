@@ -1,15 +1,7 @@
-import { Services } from 'src/categories/entities/services.entity';
-import { User } from 'src/user/entities/user.entity';
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  JoinTable,
-  ManyToMany,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { AppointmentStatus } from '../../enum/appointmenStatus.enum';
+import { Service } from "src/categories/entities/services.entity";
+import { User } from "src/user/entities/user.entity";
+import { Column, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { AppointmentStatus } from "../../enum/appointmenStatus.enum";
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn('uuid')

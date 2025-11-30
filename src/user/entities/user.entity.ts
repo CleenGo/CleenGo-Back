@@ -45,7 +45,6 @@ export abstract class User {
   @Column({
     type: 'enum',
     enum: Role,
-    default: Role.CLIENT,
   })
   role: Role;
 

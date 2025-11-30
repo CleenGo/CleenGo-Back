@@ -1,8 +1,9 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { Category } from "./category.entity";
+import { Provider } from "src/provider/entities/provider.entity";
 
-@Entity('services')
-export class Services {
+@Entity('service')
+export class Service {
     @PrimaryGeneratedColumn('uuid')
     id: string
 
@@ -15,6 +16,20 @@ export class Services {
     @ManyToOne(() => Category, (category) => category.services)
     @JoinColumn({ name: 'categoryId' })
     category: Category
+
+    @ManyToMany(()=> Provider, (provider) => provider.services)
+    @JoinTable({
+      name: 'PROVIDER_SERVICES',
+      joinColumn: {
+        name: 'serviceId',
+        referencedColumnName: 'id',
+      },
+      inverseJoinColumn: {
+        name: 'providerId',
+        referencedColumnName: 'id',
+      },
+    })
+    providers: Provider[]
 
     @Column({type: 'boolean', default: true})
     isActive: boolean

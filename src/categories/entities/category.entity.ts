@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { Services } from "./services.entity";
+import { Service } from "./services.entity";
 
 @Entity('categories')
 export class Category {
@@ -12,9 +12,9 @@ export class Category {
     })
     name: string
 
-    @OneToMany(() => Services, (service) => service.category)
+    @OneToMany(() => Service, (service) => service.category)
     @JoinColumn({name: 'services_id'})
-    services: Services[]
+    services: Service[]
 
     @Column({type: 'boolean', default: true})
     isActive: boolean
