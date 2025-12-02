@@ -5,6 +5,7 @@ import {
   Param,
   HttpStatus,
   HttpCode,
+  Put,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginAuthDto } from './dto/login-auth';
@@ -14,6 +15,7 @@ import { RegisterUserDto } from 'src/user/dto/register-user.dto';
 import { RegisterProviderDto } from 'src/provider/dto/create-provider.dto';
 import { Role } from 'src/enum/role.enum';
 import { ThirdPartyAuthDto } from './dto/third-party-auth.dto';
+import { AuthenticatedClient } from 'src/user/interfaces/authenticated-client';
 
 @Controller('auth')
 export class AuthController {
@@ -91,4 +93,9 @@ export class AuthController {
   ) {
     return this.authService.thirdPartyAuth(roleParam, body);
   }
+
+  //!--------AGREGAR ESTAS ACCIONES EN AUTH CONTROLLER Y SERVICE --------
+  //* 1. Como cliente quiero poder cambiar mi contraseña (módulo autenticación).
+  //* 2. Como cliente quiero poder recuperar mi contraseña si la olvido (módulo autenticación).
+  //* 3. Como cliente quiero poder cerrar sesión de manera segura (módulo de autenticación).
 }
