@@ -1,7 +1,15 @@
-import { Service } from "src/categories/entities/services.entity";
-import { User } from "src/user/entities/user.entity";
-import { Column, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { AppointmentStatus } from "../../enum/appointmenStatus.enum";
+import { Service } from 'src/categories/entities/services.entity';
+import { User } from 'src/user/entities/user.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { AppointmentStatus } from '../../enum/appointmenStatus.enum';
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn('uuid')
@@ -15,19 +23,19 @@ export class Appointment {
   @JoinColumn({ name: 'provider_id' })
   providerId: User;
 
-  @ManyToMany(() => Services)
+  @ManyToMany(() => Service)
   @JoinTable({
     name: 'appointment_services',
     joinColumn: {
-      name: 'serviceId',
-      referencedColumnName: 'id',
-    },
-    inverseJoinColumn: {
       name: 'appointmentId',
       referencedColumnName: 'id',
     },
+    inverseJoinColumn: {
+      name: 'serviceId',
+      referencedColumnName: 'id',
+    },
   })
-  services: Services[];
+  services: Service[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
   price: number;

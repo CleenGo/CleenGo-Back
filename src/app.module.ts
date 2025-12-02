@@ -16,6 +16,7 @@ import { getTypeOrmOptions } from './config/typeorm.config';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { UserModule } from './user/user.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { SeedModule } from './seeder/seeder.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     UserModule,
     ReviewsModule,
     CategoriesModule,
+    SeedModule,
   ],
 })
 export class AppModule {}
