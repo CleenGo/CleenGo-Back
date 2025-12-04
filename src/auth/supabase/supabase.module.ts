@@ -12,6 +12,12 @@ export const SUPABASE_CLIENT = 'SUPABASE_CLIENT';
         const url = process.env.SUPABASE_URL;
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+        // console.log('🔍 SUPABASE_URL:', url);
+        // console.log(
+        //   '🔍 SERVICE KEY PREFIX:',
+        //   serviceKey ? serviceKey.slice(0, 15) : 'NO DEFINIDA',
+        // );
+
         if (!url || !serviceKey) {
           throw new Error(
             'SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY no están configurados',

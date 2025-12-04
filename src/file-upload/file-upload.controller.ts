@@ -1,34 +1,60 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileUploadService } from './file-upload.service';
-import { CreateFileUploadDto } from './dto/create-file-upload.dto';
-import { UpdateFileUploadDto } from './dto/update-file-upload.dto';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/enum/role.enum';
+import { FileInterceptor } from '@nestjs/platform-express';
 
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('file-upload')
 export class FileUploadController {
   constructor(private readonly fileUploadService: FileUploadService) {}
 
-  @Post()
-  create(@Body() createFileUploadDto: CreateFileUploadDto) {
-    return this.fileUploadService.create(createFileUploadDto);
-  }
+  @Post('avatar/:userId')
+  @ApiOperation({
+    summary:
+      'Subir o actualizar la imagen de perfil (avatar) de un usuario (cliente, proveedor o admin)',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Imagen de perfil (JPEG, PNG, etc.)',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @Roles(Role.CLIENT, Role.PROVIDER, Role.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadUserAvatar(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @UploadedFile() file: any,
+    @Req() req: any,
+  ) {
+    const currentUser = req.user;
 
-  @Get()
-  findAll() {
-    return this.fileUploadService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.fileUploadService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFileUploadDto: UpdateFileUploadDto) {
-    return this.fileUploadService.update(+id, updateFileUploadDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.fileUploadService.remove(+id);
+    return this.fileUploadService.uploadUserAvatar(userId, file, currentUser);
   }
 }

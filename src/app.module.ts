@@ -11,7 +11,6 @@ import { AdminModule } from './admin/admin.module';
 import { SuscriptionModule } from './suscription/suscription.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { CategoriesModule } from './categories/categories.module';
-
 import { getTypeOrmOptions } from './config/typeorm.config';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { UserModule } from './user/user.module';
