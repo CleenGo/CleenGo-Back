@@ -7,7 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: ['http://localhost:5173'], //! front (dev). Agregar el dominio de producción cuando esté disponible
+    origin: process.env.FRONT_URL,
     credentials: true,
   });
 
