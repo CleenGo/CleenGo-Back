@@ -16,13 +16,13 @@ export class ProviderService {
 ){}
 
   async findAll() {
-    return  this.serviceprovider.find({where: { isActive: true } ,relations:['category'] });
+    return  this.serviceprovider.find({where: { isActive: true }  });
   }
 
   async findOne(id:string ) {
   const provider = await this.serviceprovider.findOne({
       where: { id },
-      relations:['category','schedule']
+      //relations:['category','schedule']
     });
 
     if (!provider|| provider.isActive === false) {
@@ -144,5 +144,57 @@ async remove(id: string) {
 
   return await query.getMany();
 } */
+
+  async filterProviders(filters: {
+  days?: string[];
+  hours?: string[];
+  services?: string[];
+  rating?: number;
+}) {
+  const { days, hours, services, rating } = filters;
+
+  const query = this.serviceprovider
+    .createQueryBuilder('provider')
+    .leftJoinAndSelect('provider.services', 'service')
+    .leftJoinAndSelect('provider.suscription', 'suscription')
+    .leftJoin('reviews', 'review', 'review.rated_id = provider.id')
+    .where('provider.isActive = true');
+
+  // ------------------------
+  // FILTRO POR DIAS
+  // ------------------------
+  if (days && days.length > 0) {
+    query.andWhere('provider.days && :days', { days });
+    // operador && = array overlap (PostgreSQL)
+  }
+
+  // ------------------------
+  // FILTRO POR HORARIOS
+  // ------------------------
+  if (hours && hours.length > 0) {
+    query.andWhere('provider.hours && :hours', { hours });
+  }
+
+  // ------------------------
+  // FILTRO POR SERVICIOS
+  // ------------------------
+  if (services && services.length > 0) {
+    query.andWhere('service.id IN (:...services)', { services });
+  }
+
+  // ------------------------
+  // FILTRO POR RATING PROMEDIO
+  // ------------------------
+  if (rating) {
+    query
+      .addSelect('AVG(review.rating)', 'avgRating')
+      .groupBy('provider.id')
+      .having('AVG(review.rating) >= :rating', { rating });
+  }
+
+  const providers = await query.getMany();
+
+  return providers;
+}
 
 }
