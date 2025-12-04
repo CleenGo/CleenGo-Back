@@ -12,8 +12,10 @@ import { RegisterProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 import { Query } from '@nestjs/common';
 import { Role } from 'src/enum/role.enum';
-import { ApiBody, ApiOkResponse, ApiParam, ApiResponse,ApiTags} from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiParam, ApiResponse,ApiTags,ApiQuery} from '@nestjs/swagger';
 import { ApiOperation } from '@nestjs/swagger/dist/decorators/api-operation.decorator';
+import { FilterProviderDto } from './dto/filterProvider.dto';
+import { filter } from 'rxjs';
 
 
 @ApiTags('Providers')
@@ -25,7 +27,7 @@ export class ProviderController {
 
 
 
-    //trae  a todos los provedores 
+  //trae  a todos los provedores 
   @Get()
   @ApiOperation({ summary: 'Obtiene todos los proveedores' })
   @ApiResponse({ status: 200, description: 'Lista de proveedores encontrada' })
@@ -33,6 +35,22 @@ export class ProviderController {
     return this.providerService.findAll();
   }
 
+@Get('filter')
+@ApiQuery({
+  name: 'day',
+  required: false,
+  type: String,
+  description: 'Día para filtrar proveedores (ej: Monday)',
+})
+@ApiQuery({
+  name: 'hour',
+  required: false,
+  type: String,
+  description: 'Horario para filtrar proveedores (ej: 09:00-12:00)',
+})
+filterProviders(@Query() filters: FilterProviderDto) {
+  return this.providerService.filterProviders(filters);
+}
 /*   
   // GET /serviceproviders/search?name=Juan&category=Peluqueria (forma de poner para probar )
   @Get('search')
@@ -102,24 +120,6 @@ async getProviders(
  */
 
 
-//endpoint a consumir 
-// GET /provider/filters?days[]=lunes&days[]=martes&hours[]=08:00&services[]=idServicio&rating=4
-@Get('filters')
-@ApiOperation({ summary: 'Filtra proveedores por días, horarios, servicios y rating' })
-@ApiResponse({ status: 200, description: 'Lista de proveedores filtrados' })
-filterProviders(
-  @Query('days') days?: string[],
-  @Query('hours') hours?: string[],
-  @Query('services') services?: string[],
-  @Query('rating') rating?: string, // siempre llega como string
-) {
 
-  return this.providerService.filterProviders({
-    days,
-    hours,
-    services,
-    rating: rating ? Number(rating) : undefined,
-  });
-}
 
 }

@@ -6,11 +6,13 @@ import {
   JoinTable,
   ManyToMany,
   ManyToOne,
+  OneToMany,
   OneToOne,
 } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
 import { Service } from 'src/categories/entities/services.entity';
 import { Suscription } from 'src/suscription/entities/suscription.entity';
+import { Appointment } from 'src/appointments/entities/appointment.entity';
 
 @ChildEntity()
 export class Provider extends User {
@@ -40,4 +42,9 @@ export class Provider extends User {
   @OneToOne(() => Suscription, (Suscription) => Suscription.provider)
   @JoinColumn({ name: 'suscription_id' })
   suscription: Suscription;
+
+
+  
+@OneToMany(() => Appointment, (appointment) => appointment.providerId)
+appointments: Appointment[];
 }

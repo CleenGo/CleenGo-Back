@@ -10,6 +10,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { AppointmentStatus } from '../../enum/appointmenStatus.enum';
+
 @Entity('appointments')
 export class Appointment {
   @PrimaryGeneratedColumn('uuid')
@@ -22,6 +23,8 @@ export class Appointment {
   @ManyToOne(() => User)
   @JoinColumn({ name: 'provider_id' })
   providerId: User;
+
+
 
   @ManyToMany(() => Service)
   @JoinTable({

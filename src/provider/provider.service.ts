@@ -7,13 +7,17 @@ import { Repository ,Like } from 'typeorm';
 import { Provider } from './entities/provider.entity';
 import { Role } from 'src/enum/role.enum';
 import { Review } from 'src/reviews/entities/review.entity';
+import { Appointment } from 'src/appointments/entities/appointment.entity';
 @Injectable()
 export class ProviderService {
 
   constructor(@InjectRepository (Provider)
   private readonly serviceprovider :Repository<Provider>,
 
-  //inyectar appoinments
+  @InjectRepository(Appointment)
+  private readonly appoimentService :Repository<Appointment>
+
+  
 ){}
 
   async findAll() {
@@ -57,6 +61,24 @@ async remove(id: string) {
   return await this.serviceprovider.save(provider);
 }
 
+
+async filterProviders(filters: { day?: string; hour?: string }) {
+  const { day, hour } = filters;
+  
+  const query = this.serviceprovider
+    .createQueryBuilder('provider')
+    .where('provider.isActive = :active', { active: true });
+
+  if (day) {
+    query.andWhere(':day = ANY(provider.days)', { day });
+  }
+
+  if (hour) {
+    query.andWhere(':hour = ANY(provider.hours)', { hour });
+  }
+
+  return query.getMany();
+}
 
 /*     async dashboard(user){
     const provider = await this.serviceprovider.findOne({
@@ -114,39 +136,60 @@ async remove(id: string) {
     });
   }
  */
+/* async filterProviders(filters: {
+  days?: string[];
+  hours?: string[];
+  agendaDays?: string[];
+  rating?: number;
+}) {
+  const { days, hours, agendaDays, rating } = filters;
 
-/*   
-  async filterProviders(
-  name?: string,
-  category?: string,
-  day?: string,
-) {
   const query = this.serviceprovider
     .createQueryBuilder('provider')
-    .where('provider.isActive = :isActive', { isActive: true })
-    .leftJoinAndSelect('provider.category', 'category')
-    .leftJoinAndSelect('provider.schedule', 'schedule');
+    .leftJoinAndSelect('provider.services', 'service')
+    .leftJoinAndSelect('provider.schedule', 'schedule')
+    .leftJoin(Review, 'review', 'review.rated_id = provider.id')
+    .where('provider.isActive = true');
 
-  // Filtrar por nombre
-  if (name) {
-    query.andWhere('provider.name ILIKE :name', { name: `%${name}%` });
+  // ----------------------------
+  // FILTRO POR DÍAS QUE TRABAJA
+  // ----------------------------
+  if (days?.length) {
+    query.andWhere('provider.days && ARRAY[:...days]::text[]', { days });
   }
 
-  // Filtrar por categoría
-  if (category) {
-    query.andWhere('category.name ILIKE :category', { category: `%${category}%` });
+  // ----------------------------
+  // FILTRO POR HORARIOS QUE TRABAJA
+  // ----------------------------
+  if (hours?.length) {
+    query.andWhere('provider.hours && ARRAY[:...hours]::text[]', { hours });
   }
 
-  // Filtrar por día disponible
-  if (day) {
-    // Asumiendo que schedule.days es un string tipo "lunes,martes"
-    query.andWhere('schedule.days ILIKE :day', { day: `%${day}%` });
+  // ----------------------------
+  // FILTRO POR DÍAS DISPONIBLES EN LA AGENDA
+  // ----------------------------
+  if (agendaDays?.length) {
+    query.andWhere('provider.agendaDays && ARRAY[:...agendaDays]::text[]', {
+      agendaDays,
+    });
+  }
+
+  // ----------------------------
+  // FILTRO POR RATING
+  // ----------------------------
+  if (rating) {
+    query
+      .addSelect('AVG(review.rating)', 'avgRating')
+      .groupBy('provider.id')
+      .having('COALESCE(AVG(review.rating), 0) >= :rating', { rating });
+    // COALESCE permite incluir providers sin reviews tratándolos como rating = 0
   }
 
   return await query.getMany();
 } */
 
-async filterProviders(filters: {
+
+/* async filterProviders(filters: {
   days?: string[];
   hours?: string[];
   services?: string[];
@@ -186,7 +229,7 @@ async filterProviders(filters: {
 
   return query.getMany();
 }
-
+ */
 
 
 }
