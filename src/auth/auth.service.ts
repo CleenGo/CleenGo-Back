@@ -11,6 +11,7 @@ import { RegisterProviderDto } from 'src/provider/dto/create-provider.dto';
 import { Provider } from 'src/provider/entities/provider.entity';
 import { JwtService } from '@nestjs/jwt';
 import { ThirdPartyAuthDto } from './dto/third-party-auth.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -334,6 +335,38 @@ export class AuthService {
       message: '✅ Registro por terceros exitoso',
       accessToken: jwtAccessToken,
       user: safeUser,
+    };
+  }
+
+  //? -------- Cambio de contraseña --------
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) throw new BadRequestException('⚠️ Usuario no encontrado');
+
+    const { error: signInError } =
+      await this.supabaseClient.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+    if (signInError)
+      throw new BadRequestException('⚠️ La contraseña actual es incorrecta');
+
+    const { error: updateError } =
+      await this.supabaseClient.auth.admin.updateUserById(user.passwordUrl, {
+        password: newPassword,
+      });
+
+    if (updateError)
+      throw new BadRequestException(
+        `⚠️ No se pudo actualizar la contraseña. Inténtalo más tarde.`,
+      );
+
+    return {
+      message: '✅ Contraseña actualizada correctamente',
     };
   }
 }
