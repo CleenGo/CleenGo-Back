@@ -42,6 +42,36 @@ export abstract class User {
   @Column({ nullable: true })
   phone: string;
 
+  @Column({ nullable: true })
+street: string;
+
+  @Column({ nullable: true })
+  exteriorNumber: string;
+
+  @Column({ nullable: true })
+  interiorNumber: string;
+
+  @Column({ nullable: true })
+  neighborhood: string;
+
+  @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  state: string;
+
+  @Column({ nullable: true })
+  postalCode: string;
+  
+  @Column({ nullable: true, type: 'text' })
+  fullAddress: string;
+
+  @Column({ nullable: true, type: 'float' })
+  latitude: number;
+
+  @Column({ nullable: true, type: 'float' })
+  longitude: number;
+  
   @Column({
     type: 'enum',
     enum: Role,
