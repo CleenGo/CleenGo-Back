@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { CreateSuscriptionDto } from './dto/create-suscription.dto';
 import { UpdateSuscriptionDto } from './dto/update-suscription.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Suscription } from './entities/suscription.entity';
 
 @Injectable()
 export class SuscriptionService {
+  constructor(
+    @InjectRepository(Suscription)
+    private readonly suscriptionRepository: Suscription
+  ) {}
   create(createSuscriptionDto: CreateSuscriptionDto) {
     return 'This action adds a new suscription';
   }

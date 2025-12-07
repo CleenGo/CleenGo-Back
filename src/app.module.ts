@@ -17,6 +17,7 @@ import { UserModule } from './user/user.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { SeedModule } from './seeder/seeder.module';
 import { NodemailerModule } from './nodemailer/nodemailer.module';
+import { SuscriptionPlanModule } from './suscription-plan/suscription-plan.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { NodemailerModule } from './nodemailer/nodemailer.module';
     CategoriesModule,
     SeedModule,
     NodemailerModule,
+    SuscriptionPlanModule,
   ],
 })
 export class AppModule {}
