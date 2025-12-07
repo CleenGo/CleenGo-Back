@@ -1,4 +1,5 @@
 // src/user/dto/update-user-profile.dto.ts
+
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
@@ -7,6 +8,7 @@ import {
   IsUrl,
   MinLength,
   MaxLength,
+  IsNumber,
 } from 'class-validator';
 
 export class UpdateUserProfileDto {
@@ -43,4 +45,64 @@ export class UpdateUserProfileDto {
   @MinLength(10)
   @MaxLength(15)
   phone?: string;
+
+  @ApiPropertyOptional({ example: 'Av. Insurgentes Sur' })
+  @IsOptional()
+  @IsString()
+  street?: string;
+
+  @ApiPropertyOptional({ example: '123' })
+  @IsOptional()
+  @IsString()
+  exteriorNumber?: string;
+
+  @ApiPropertyOptional({ example: 'Depto. 5B' })
+  @IsOptional()
+  @IsString()
+  interiorNumber?: string;
+
+  @ApiPropertyOptional({ example: 'Roma Norte' })
+  @IsOptional()
+  @IsString()
+  neighborhood?: string;
+
+  @ApiPropertyOptional({ example: 'Ciudad de México' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'CDMX' })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiPropertyOptional({ example: '06700' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  postalCode?: string;
+
+  @ApiPropertyOptional({
+    example: 'Av. Insurgentes Sur 123, Roma Norte, CDMX',
+    description: 'Dirección completa generada automáticamente',
+  })
+  @IsOptional()
+  @IsString()
+  fullAddress?: string;
+
+  @ApiPropertyOptional({
+    example: 19.404,
+    description: 'Latitud tomada desde mapa o GPS',
+  })
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @ApiPropertyOptional({
+    example: -99.169,
+    description: 'Longitud tomada desde mapa o GPS',
+  })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
 }

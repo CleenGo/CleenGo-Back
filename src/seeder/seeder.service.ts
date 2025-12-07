@@ -1,7 +1,7 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Plan } from 'src/suscription/entities/plan.entity';
+import { Plan } from 'src/suscription-plan/entities/suscription-plan.entity';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {

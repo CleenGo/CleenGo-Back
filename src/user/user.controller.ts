@@ -1,9 +1,7 @@
 import {
   Controller,
   Get,
-  Post,
   Body,
-  Patch,
   Param,
   Delete,
   ParseUUIDPipe,
@@ -14,12 +12,9 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { RegisterUserDto } from './dto/register-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'src/enum/role.enum';
 import { AuthenticatedClient } from './interfaces/authenticated-client';
-import { get } from 'http';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -51,6 +46,46 @@ export class UserController {
   })
   @ApiOkResponse({
     description: 'Perfil de cliente obtenido correctamente',
+    schema: {
+      example: {
+        id: '0c8f04a1-1234-4bcd-9876-abcdef123456',
+        name: 'Tester100',
+        surname: 'Example',
+        email: 'tester1@test.com',
+        birthDate: '1990-01-01',
+        profileImgUrl: 'https://example.com/profile.jpg',
+        phone: '+521234567890',
+        street: 'Av. Insurgentes Sur',
+        exteriorNumber: '123',
+        interiorNumber: 'Depto. 5B',
+        neighborhood: 'Roma Norte',
+        city: 'Ciudad de México',
+        state: 'CDMX',
+        postalCode: '06700',
+        fullAddress: 'Av. Insurgentes Sur 123, Roma Norte, CDMX',
+        latitude: 19.404,
+        longitude: -99.169,
+        role: 'CLIENT',
+        rating: 4,
+        isActive: true,
+        clientAppointments: [
+          {
+            id: 'app-uuid',
+            date: '2025-01-01',
+            status: 'COMPLETED',
+            // ...otros campos de appointment si quieres documentarlos
+          },
+        ],
+        reviewsReceived: [
+          {
+            id: 'rev-uuid',
+            score: 5,
+            comment: 'Excelente cliente',
+            // ...otros campos de review
+          },
+        ],
+      },
+    },
   })
   @ApiNotFoundResponse({
     description: 'No se encontró el perfil del cliente',
@@ -76,6 +111,30 @@ export class UserController {
   })
   @ApiOkResponse({
     description: 'Perfil de cliente actualizado correctamente',
+    schema: {
+      example: {
+        id: '0c8f04a1-1234-4bcd-9876-abcdef123456',
+        name: 'Tester100',
+        surname: 'Example',
+        email: 'tester1@test.com',
+        birthDate: '1990-01-01',
+        profileImgUrl: 'https://example.com/profile.jpg',
+        phone: '+521234567890',
+        street: 'Av. Insurgentes Sur',
+        exteriorNumber: '123',
+        interiorNumber: 'Depto. 5B',
+        neighborhood: 'Roma Norte',
+        city: 'Ciudad de México',
+        state: 'CDMX',
+        postalCode: '06700',
+        fullAddress: 'Av. Insurgentes Sur 123, Roma Norte, CDMX',
+        latitude: 19.404,
+        longitude: -99.169,
+        role: 'CLIENT',
+        rating: 4,
+        isActive: true,
+      },
+    },
   })
   @ApiForbiddenResponse({
     description: 'No tienes permiso para actualizar este perfil',

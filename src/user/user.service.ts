@@ -8,8 +8,6 @@ import { ILike, Repository } from 'typeorm';
 
 import { User } from './entities/user.entity';
 import { Role } from 'src/enum/role.enum';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { use } from 'passport';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { ClientFilter } from './interfaces/client-filter';
 
@@ -45,11 +43,61 @@ export class UserService {
       where: { id, role: Role.CLIENT, isActive: true },
     });
 
-    if (!user) throw new NotFoundException('Cliente no encontrado');
+    if (!user) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
 
-    const safeFields = updateUserDto;
+    const {
+      name,
+      surname,
+      birthDate,
+      profileImgUrl,
+      phone,
+      street,
+      exteriorNumber,
+      interiorNumber,
+      neighborhood,
+      city,
+      state,
+      postalCode,
+      fullAddress,
+      latitude,
+      longitude,
+    } = updateUserDto;
 
-    Object.assign(user, safeFields);
+    if (name !== undefined) user.name = name;
+    if (surname !== undefined) user.surname = surname;
+    if (birthDate !== undefined) user.birthDate = birthDate;
+    if (profileImgUrl !== undefined) user.profileImgUrl = profileImgUrl;
+    if (phone !== undefined) user.phone = phone;
+
+    if (street !== undefined) user.street = street;
+    if (exteriorNumber !== undefined) user.exteriorNumber = exteriorNumber;
+    if (interiorNumber !== undefined) user.interiorNumber = interiorNumber;
+    if (neighborhood !== undefined) user.neighborhood = neighborhood;
+    if (city !== undefined) user.city = city;
+    if (state !== undefined) user.state = state;
+    if (postalCode !== undefined) user.postalCode = postalCode;
+
+    if (fullAddress !== undefined && fullAddress !== null) {
+      user.fullAddress = fullAddress;
+    } else {
+      const parts = [
+        street ?? user.street,
+        exteriorNumber ?? user.exteriorNumber,
+        neighborhood ?? user.neighborhood,
+        city ?? user.city,
+        state ?? user.state,
+        postalCode ?? user.postalCode,
+      ].filter(Boolean);
+
+      if (parts.length > 0) {
+        user.fullAddress = parts.join(', ');
+      }
+    }
+
+    if (latitude !== undefined) user.latitude = latitude;
+    if (longitude !== undefined) user.longitude = longitude;
 
     user.role = Role.CLIENT;
 

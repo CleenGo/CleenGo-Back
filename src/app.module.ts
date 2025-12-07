@@ -16,6 +16,7 @@ import { FileUploadModule } from './file-upload/file-upload.module';
 import { UserModule } from './user/user.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { SeedModule } from './seeder/seeder.module';
+import { SuscriptionPlanModule } from './suscription-plan/suscription-plan.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { SeedModule } from './seeder/seeder.module';
     ReviewsModule,
     CategoriesModule,
     SeedModule,
+    SuscriptionPlanModule,
   ],
 })
 export class AppModule {}

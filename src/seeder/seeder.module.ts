@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Plan } from 'src/suscription/entities/plan.entity';
+import { Plan } from 'src/suscription-plan/entities/suscription-plan.entity';
 import { SeedService } from './seeder.service';
 import { Category } from 'src/categories/entities/category.entity';
 import { CategorySeedService } from './category.seeder.service';
