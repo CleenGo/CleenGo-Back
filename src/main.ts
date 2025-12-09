@@ -2,10 +2,13 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common/pipes/validation.pipe';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, raw } from 'express';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
+  app.use('/webhook', raw({ type: 'application/json' }));
+  app.use(json());
   app.enableCors({
     origin: process.env.FRONT_URL,
     credentials: true,
