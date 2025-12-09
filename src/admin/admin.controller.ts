@@ -1,34 +1,32 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { CreateAdminDto } from './dto/create-admin.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
+import { DashboardCacheService } from 'src/Dashboard/dashboard-cache.service';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/enum/role.enum';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly dashboardCache: DashboardCacheService,
+  ) {}
 
-  @Post()
-  create(@Body() createAdminDto: CreateAdminDto) {
-    return this.adminService.create(createAdminDto);
-  }
+  @Roles(Role.ADMIN)
+  @UseGuards(JwtAuthGuard,RolesGuard)  
+  @Get('dashboard')
+  async getDashboard() {
+    // Buscar desde Redis
+    const cachedData = await this.dashboardCache.getDashboardData();
 
-  @Get()
-  findAll() {
-    return this.adminService.findAll();
-  }
+    // Si no hay nada cacheado (ej: primer deploy), lo generamos manualmente
+    if (!cachedData) {
+      const data = await this.adminService.calculateDashboardStats();
+      await this.dashboardCache.setDashboardData(data);
+      return data;
+    }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.adminService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAdminDto: UpdateAdminDto) {
-    return this.adminService.update(+id, updateAdminDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.adminService.remove(+id);
+    return cachedData;
   }
 }

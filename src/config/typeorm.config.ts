@@ -11,9 +11,10 @@ export const getTypeOrmOptions = (): TypeOrmModuleOptions => ({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   autoLoadEntities: true,
+  
 
   //dev: sincroniza; prod: usa migraciones
-  synchronize: process.env.NODE_ENV === 'development' ? true : false,
+  synchronize: true,
   // migrations: ['src/migrations/**/*{.ts,.js}'],
 
   logging: process.env.NODE_ENV === 'development' ? false : false,

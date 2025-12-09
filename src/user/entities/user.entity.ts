@@ -43,7 +43,7 @@ export abstract class User {
   phone: string;
 
   @Column({ nullable: true })
-street: string;
+  street: string;
 
   @Column({ nullable: true })
   exteriorNumber: string;
