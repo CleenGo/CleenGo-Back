@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { LoginAuthDto } from './dto/login-auth';
 import { SUPABASE_CLIENT } from './supabase/supabase.module';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -13,8 +18,17 @@ import { JwtService } from '@nestjs/jwt';
 import { ThirdPartyAuthDto } from './dto/third-party-auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 
+// 🔹 NUEVO: Nodemailer + Config + DTOs de recovery
+import { NodemailerService } from 'src/nodemailer/nodemailer.service';
+import { ConfigService } from '@nestjs/config';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+
 @Injectable()
 export class AuthService {
+  // 🔹 NUEVO: logger para mensajes de nodemailer / recovery
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject(SUPABASE_CLIENT) private readonly supabaseClient: SupabaseClient,
 
@@ -24,6 +38,12 @@ export class AuthService {
     private readonly providerRepository: Repository<Provider>,
 
     private readonly jwtService: JwtService,
+
+    // 🔹 NUEVO: inyectar servicio de Nodemailer
+    private readonly nodemailerService: NodemailerService,
+
+    // 🔹 NUEVO: para FRONTEND_URL
+    private readonly configService: ConfigService,
   ) {}
 
   //? -------- Registro de cliente --------
@@ -87,6 +107,9 @@ export class AuthService {
     const savedUser = await this.userRepository.save(newUser);
 
     const { passwordUrl, ...safeUser } = savedUser;
+
+    // 🔹 NUEVO: enviar correo de bienvenida
+    await this.sendWelcomeEmail(safeUser.email, safeUser.name, safeUser.role);
 
     return {
       message: '✅ Usuario cliente registrado exitosamente',
@@ -173,6 +196,13 @@ export class AuthService {
     const savedProvider = await this.providerRepository.save(newProvider);
 
     const { passwordUrl, ...safeProvider } = savedProvider;
+
+    // 🔹 NUEVO: correo de bienvenida para proveedor
+    await this.sendWelcomeEmail(
+      safeProvider.email,
+      safeProvider.name,
+      safeProvider.role,
+    );
 
     return {
       message: '✅ Usuario proveedor registrado exitosamente',
@@ -367,6 +397,190 @@ export class AuthService {
 
     return {
       message: '✅ Contraseña actualizada correctamente',
+    };
+  }
+
+  //? -------- Nodemailer Helper (bienvenida) --------
+  private async sendWelcomeEmail(to: string, name: string, role: Role) {
+    const roleLabel =
+      role === Role.CLIENT
+        ? 'cliente'
+        : role === Role.PROVIDER
+          ? 'proveedor'
+          : 'admin';
+
+    const subject = '¡Bienvenido a CleenGo! 🎉';
+
+    const html = `
+      <h1>¡Hola, ${name}!</h1>
+      <p>
+        Gracias por registrarte como <strong>${roleLabel}</strong> en
+        <strong>CleenGo</strong>.
+      </p>
+      <p>
+        Desde ahora podrás gestionar tus servicios de limpieza y mantener tus
+        espacios siempre impecables.
+      </p>
+      <hr />
+      <p style="font-size: 12px; color: #888;">
+        Este correo fue enviado automáticamente por el backend de CleenGo.
+      </p>
+    `;
+
+    const text = `¡Hola, ${name}!
+Gracias por registrarte como ${roleLabel} en CleenGo.`;
+
+    try {
+      await this.nodemailerService.sendMail({
+        to,
+        subject,
+        html,
+        text,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error enviando email de bienvenida a ${to}: ${error.message}`,
+      );
+    }
+  }
+
+  //? -------- Recuperar contraseña (solicitud) --------
+  async requestPasswordReset(forgotPasswordDto: ForgotPasswordDto) {
+    const { email } = forgotPasswordDto;
+
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    // Siempre respondemos lo mismo por seguridad
+    if (!user) {
+      this.logger.warn(
+        `Solicitud de reset de contraseña para email no registrado: ${email}`,
+      );
+
+      return {
+        message:
+          '✅ Si el email está registrado, se ha enviado un enlace para restablecer la contraseña',
+      };
+    }
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      type: 'password-reset',
+    };
+
+    const expiresIn = '30m';
+    const token = this.jwtService.sign(payload, { expiresIn });
+
+    const expirationTime = 30; // minutos (para el texto del mail)
+
+    const frontUrl = this.configService.get<string>('FRONTEND_URL');
+    const resetUrl = `${frontUrl}/reset-password?token=${token}`;
+
+    const subject = 'Restablecer tu contraseña en CleenGo 🔐';
+
+    const html = `
+      <h1>Hola, ${user.name} 👋</h1>
+      <p>Recibimos una solicitud para restablecer tu contraseña de <strong>CleenGo</strong>.</p>
+      <p>Haz clic en el siguiente botón para continuar:</p>
+      <p>
+        <a href="${resetUrl}"
+          style="
+            display:inline-block;
+            padding: 10px 18px;
+            background-color:#16a34a;
+            color:#ffffff;
+            text-decoration:none;
+            border-radius:6px;
+            font-weight:bold;
+          ">
+          Restablecer contraseña
+        </a>
+      </p>
+      <p>Si no fuiste tú, puedes ignorar este correo. El enlace expirará en ${expirationTime} minutos.</p>
+      <hr />
+      <p style="font-size: 12px; color: #888;">
+        Este correo fue enviado automáticamente por el backend de CleenGo.
+      </p>
+    `;
+
+    const text = `
+Hola, ${user.name}.
+
+Recibimos una solicitud para restablecer tu contraseña de CleenGo.
+Enlace para restablecer (cópialo en tu navegador):
+
+${resetUrl}
+
+Si no fuiste tú, puedes ignorar este correo. El enlace expira en ${expirationTime} minutos.
+    `;
+
+    try {
+      await this.nodemailerService.sendMail({
+        to: user.email,
+        subject,
+        html,
+        text,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error enviando email de restablecimiento a ${user.email}: ${error.message}`,
+      );
+    }
+
+    return {
+      message:
+        '✅ Si el email está registrado, se ha enviado un enlace para restablecer la contraseña',
+    };
+  }
+
+  //? -------- Restablecer contraseña (aplicar nuevo password) --------
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { token, newPassword, confirmPassword } = resetPasswordDto;
+
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException(
+        '⚠️ La nueva contraseña y su confirmación no coinciden',
+      );
+    }
+
+    let payload: any;
+
+    try {
+      payload = this.jwtService.verify(token);
+    } catch (error) {
+      throw new BadRequestException('⚠️ Token inválido o expirado');
+    }
+
+    if (payload.type !== 'password-reset') {
+      throw new BadRequestException(
+        '⚠️ Token inválido para restablecer contraseña',
+      );
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new BadRequestException('⚠️ Usuario no encontrado');
+    }
+
+    const { error: updateError } =
+      await this.supabaseClient.auth.admin.updateUserById(user.passwordUrl, {
+        password: newPassword,
+      });
+
+    if (updateError) {
+      this.logger.error(
+        `❌ Error actualizando contraseña en Supabase para usuario ${user.email}: ${updateError.message}`,
+      );
+      throw new BadRequestException(
+        '⚠️ No se pudo restablecer la contraseña. Inténtalo más tarde.',
+      );
+    }
+
+    return {
+      message: '✅ Contraseña restablecida correctamente',
     };
   }
 }

@@ -11,11 +11,13 @@ import * as jwt from 'jsonwebtoken';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { NodemailerModule } from 'src/nodemailer/nodemailer.module';
 
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([User, Provider]),
+    NodemailerModule,
     SupabaseModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
