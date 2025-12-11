@@ -13,7 +13,7 @@ import { StripeServiceService } from './stripe.service';
 @Controller('stripe')
 export class StripeWebhookController {
     private stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-        apiVersion: '2025-11-17.clover',
+        apiVersion: '2025-09-30.clover' as any,
     });
 
     constructor(private readonly stripeService: StripeServiceService) { }
