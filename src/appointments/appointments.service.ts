@@ -6,6 +6,8 @@ import { Repository } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { User } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
+// import { FilterAppointmentDto } from './dto/filter-appointment.dto';
+import { Role } from 'src/enum/role.enum';
 
 @Injectable()
 export class AppointmentsService {
@@ -15,63 +17,105 @@ export class AppointmentsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ){}
-  create(createAppointmentDto: CreateAppointmentDto) {
-    return 'This action adds a new appointment';
-  }
+  // create(createAppointmentDto: CreateAppointmentDto) {
+  //   return 'This action adds a new appointment';
+  // }
 
-  findAll(idAuthUser: string) {
-    //busco el usuario autenticado
-    const user = this.userRepository.findOne({where: {id: idAuthUser}});
-    if (!user) throw new BadRequestException('⚠️ User not found');
+  // async findAllUserAppointments(authUser:any, filters:filterAppointmentDto) {
+  //   //busco el usuario autenticado
+  //   const user = await this.userRepository.findOne({where: {id: authUser.sub}});
+  //   if (!user) throw new BadRequestException('⚠️ User not found');
 
-    //traigo todas las appointments a su nombre
-    const appointments = this.appointmentRepository.find({where: {clientId: user, }});
-    return `This action returns all appointments`;
-  }
+  //   console.log(filters);
+  //   const query = this.appointmentRepository
+  //     .createQueryBuilder('appointment')
+  //     .leftJoinAndSelect('appointment.clientId', 'users')
+  //     .leftJoinAndSelect('appointment.providerId', 'users')
+  //     .leftJoinAndSelect('appointment.serviceId', 'service');
 
-  findOne(id: number) {
-    return `This action returns a #${id} appointment`;
-  }
+  //   if (authUser.rol === Role.CLIENT) {
+  //     query.where('client.userId = :userId', { userId: user.id });
+  //   } else if (authUser.rol === Role.PROVIDER) {
+  //     query.where('provider.userId = :userId', { userId: user.id });
+  //   }
+  //   if (filters.status) {
+  //     query.andWhere('appointment.Status = :status', {
+  //       status: filters.status,
+  //     });
+  //   }
 
-  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, idAuthUser:string) {
+  //   if (filters.category) {
+  //     query.andWhere('category.Name = :category', {
+  //       category: filters.category,
+  //     });
+  //   }
 
-    //traigo el appointment en cuestion y el usuario autenticado
-    const appointment = await this.appointmentRepository.findOne({where: {id: id}});
+  //   if (filters.providerId) {
+  //     query.andWhere('provider.Name = :provider', {
+  //       provider: filters.provider,
+  //     });
+  //   }
 
-    const user = await this.userRepository.findOne({where: {id: idAuthUser}});
-    if (!user) throw new BadRequestException('⚠️ User not found');
-    if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
+  //   query.orderBy('appointment.AppointmentDate', 'DESC');
 
-    if(user.role === 'client' && appointment.clientId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
-    else if(user.role === 'client'){
-      if(appointment.status === AppointmentStatus.CONFIRMEDPROVIDER || appointment.status === AppointmentStatus.COMPLETED) throw new BadRequestException('⚠️ You can not cancel this appointment');
-      appointment.status = AppointmentStatus.CANCELLED;
-    }
+  //   const appointments: Appointment[] = await query.getMany();
 
-    if(user.role === 'provider' && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
-    else if(user.role === 'provider'){
-      appointment.status = AppointmentStatus.REJECTED;
-    }
-    return this.appointmentRepository.save(appointment);
-    ;
-  }
+    
+  
+  // }
 
-  async remove(id: string, authuser:string) {
+  // findOne(id: number) {
+  //   return `This action returns a #${id} appointment`;
+  // }
 
-    //traigo el appointment en cuestion y el usuario autenticado
-    const appointment = await this.appointmentRepository.findOne({where: {id: id}});
+  // async update(id: string, updateAppointmentDto: UpdateAppointmentDto, idAuthUser:string) {
 
-    const user = await this.userRepository.findOne({where: {id: authuser}});
-    if (!user) throw new BadRequestException('⚠️ User not found');
-    if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
+  
+  //   ;
+  // }
 
-    if(user.role === 'client' && appointment.clientId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
-    if(user.role === 'provider' && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+  // async updateStatus(id: string, status: string) {
+  //     //traigo el appointment en cuestion y el usuario autenticado
+  //   const appointment = await this.appointmentRepository.findOne({where: {id: id}});
+
+  //   const user = await this.userRepository.findOne({where: {id: idAuthUser}});
+  //   if (!user) throw new BadRequestException('⚠️ User not found');
+  //   if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
+
+  //   if(user.role === 'client' && appointment.clientId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+  //   else if(user.role === 'client'){
+  //     if(appointment.status === AppointmentStatus.CONFIRMEDPROVIDER || appointment.status === AppointmentStatus.COMPLETED) throw new BadRequestException('⚠️ You can not cancel this appointment');
+  //     appointment.status = AppointmentStatus.CANCELLED;
+  //   }
+
+  //   if(user.role === 'provider' && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+  //   else if(user.role === 'provider'){
+  //     appointment.status = AppointmentStatus.REJECTED;
+  //   }
+  //   return this.appointmentRepository.save(appointment);
+
+
+   
+  //   appointment.status = status;
+  //   return this.appointmentRepository.save(appointment);
+  // }
+
+  // async remove(id: string, authuser:string) {
+
+  //   //traigo el appointment en cuestion y el usuario autenticado
+  //   const appointment = await this.appointmentRepository.findOne({where: {id: id}});
+
+  //   const user = await this.userRepository.findOne({where: {id: authuser}});
+  //   if (!user) throw new BadRequestException('⚠️ User not found');
+  //   if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
+
+  //   if(user.role === 'client' && appointment.clientId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+  //   if(user.role === 'provider' && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
 
   
 
-    return this.appointmentRepository.update(id, {isActive: false});
+  //   return this.appointmentRepository.update(id, {isActive: false});
   
 
-  }
+  // }
 }
