@@ -27,6 +27,10 @@ import { AuthenticatedClient } from 'src/user/interfaces/authenticated-client';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
+// 🔹 NUEVO: DTOs para recuperar / resetear contraseña
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -140,5 +144,43 @@ export class AuthController {
     const userId = req.user.id;
 
     return this.authService.changePassword(userId, changePasswordDto);
+  }
+
+  //? -------- Recuperar contraseña (solicitud) --------
+  @ApiOperation({
+    summary: 'Solicitar restablecimiento de contraseña',
+    description:
+      'Envía un correo con un enlace para restablecer la contraseña, si el correo está registrado.',
+  })
+  @ApiBody({ type: ForgotPasswordDto, required: true })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Mensaje genérico indicando que se envió (o se intentó enviar) el correo de recuperación.',
+  })
+  @Post('recover-password')
+  requestPasswordReset(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(forgotPasswordDto);
+  }
+
+  //? -------- Restablecer contraseña usando token --------
+  @ApiOperation({
+    summary: 'Restablecer contraseña usando token',
+    description:
+      'Recibe el token enviado por correo y la nueva contraseña para actualizarla.',
+  })
+  @ApiBody({ type: ResetPasswordDto, required: true })
+  @ApiResponse({
+    status: 201,
+    description: 'Contraseña restablecida correctamente',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Token inválido/expirado o la nueva contraseña y confirmación no coinciden',
+  })
+  @Post('reset-password')
+  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }
