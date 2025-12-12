@@ -180,10 +180,25 @@ export class AppointmentsService {
     return appointment;
   }
 
-  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, idAuthUser:string) {
+  //ruta exclusiva para el provider en la cita. ppara cargar el precio y el horario estimado de final de la visita luego de comunicarse con el cliente
+  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, authUser:string) {
 
-  
-    ;
+    const user = await this.userRepository.findOne({where: {id: authUser}});
+    if (!user) throw new BadRequestException('⚠️ User not found');
+
+    const appointment = await this.appointmentRepository.findOne({where: {id: id}});
+    if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
+
+    if (appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+
+    if (updateAppointmentDto.endHour){
+      appointment.endHour = updateAppointmentDto.endHour;
+    }
+    if(updateAppointmentDto.price){
+      appointment.price = updateAppointmentDto.price;
+    }
+
+    return this.appointmentRepository.save(appointment);
   }
 
   async updateStatus(id: string, status: string, authUser: any) {

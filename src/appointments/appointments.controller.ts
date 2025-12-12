@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Req, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Req, Query, BadRequestException, Put } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
@@ -38,7 +38,7 @@ export class AppointmentsController {
   }
 
   //edita la informacion de un appointment
-  @Patch('edit/:id')
+  @Put('update/:id')
   update(
     @Param('id') id: string, 
     @Body() updateAppointmentDto: UpdateAppointmentDto,
@@ -48,7 +48,7 @@ export class AppointmentsController {
   }
 
   //edita el status de un appointment
-  @Patch('status/:id')
+  @Put('status/:id')
   updateStatus(@Param('id') id: string, @Body() status: string, @Req() req: any) {
     const user = req.user;
     
