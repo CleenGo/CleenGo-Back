@@ -16,11 +16,11 @@ export class ChatMessage {
   id: string;
 
   // Usuario que ENVÍA el mensaje (puede ser client o provider)
-  @ManyToOne(() => User, { eager: true, nullable: false })
+  @ManyToOne(() => User, { eager: false, nullable: false })
   sender: User;
 
   // Usuario que RECIBE el mensaje
-  @ManyToOne(() => User, { eager: true, nullable: false })
+  @ManyToOne(() => User, { eager: false, nullable: false })
   receiver: User;
 
   // Cita a la que pertenece este chat

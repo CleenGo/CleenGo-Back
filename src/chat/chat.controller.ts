@@ -6,10 +6,20 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  UseGuards,
+  Request,
+  Patch,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
-import { ApiTags, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+} from '@nestjs/swagger';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { ChatParticipantGuard } from './guards/chat-participant.guard';
 
 @ApiTags('chat')
 @Controller('chat')
@@ -17,30 +27,52 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Post('messages')
-  @ApiOperation({
-    summary: 'Crear un mensaje de chat entre cliente y proveedor',
-    description:
-      'Crea un mensaje ligado a una cita específica. Más adelante el senderId saldrá del usuario autenticado.',
-  })
-  @ApiBody({ type: CreateChatMessageDto })
-  async createMessage(@Body() body: CreateChatMessageDto) {
-    return this.chatService.createMessage(body);
+  @UseGuards(JwtAuthGuard, ChatParticipantGuard)
+  @ApiBearerAuth()
+  async createMessage(@Body() body: CreateChatMessageDto, @Request() req: any) {
+    const senderId = req.user.id;
+
+    return this.chatService.createMessage({
+      appointmentId: body.appointmentId,
+      senderId,
+      content: body.content,
+    });
   }
 
   @Get('messages/:appointmentId')
-  @ApiOperation({
-    summary: 'Obtener historial de mensajes de una cita',
-    description:
-      'Devuelve todos los mensajes asociados a una cita, ordenados del más antiguo al más reciente.',
-  })
-  @ApiParam({
-    name: 'appointmentId',
-    description: 'UUID de la cita (appointment) relacionada al chat',
-    type: String,
-  })
+  @UseGuards(JwtAuthGuard, ChatParticipantGuard)
+  @ApiBearerAuth()
   async getMessagesByAppointment(
     @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
   ) {
     return this.chatService.getMessagesByAppointment(appointmentId);
+  }
+
+  // marcar TODOS como leídos al abrir el chat
+  @Patch('appointments/:appointmentId/read')
+  @UseGuards(JwtAuthGuard, ChatParticipantGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Marcar como leídos todos los mensajes de una cita',
+    description:
+      'Marca como leídos todos los mensajes donde el usuario autenticado sea el receptor.',
+  })
+  @ApiParam({ name: 'appointmentId', type: String })
+  async markAllAsRead(
+    @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
+    @Request() req: any,
+  ) {
+    return this.chatService.markAllAsRead(appointmentId, req.user.id);
+  }
+
+  // (tu endpoint individual puede quedarse igual)
+  @Patch('messages/:messageId/read')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async markAsRead(
+    @Param('messageId', new ParseUUIDPipe()) messageId: string,
+    @Request() req: any,
+  ) {
+    return this.chatService.markAsRead(messageId, req.user.id);
   }
 }
