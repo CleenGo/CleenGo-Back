@@ -20,7 +20,8 @@ export class Suscription {
 
    @Column({type: 'boolean', default: false})
    paymentStatus: boolean;
-    
+   
    @Column({type: 'boolean', default: true})
    isActive: boolean;
+
 }
