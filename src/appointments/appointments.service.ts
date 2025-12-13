@@ -160,8 +160,29 @@ export class AppointmentsService {
     query.orderBy('appointment.date', 'DESC');
 
     const appointments: Appointment[] = await query.getMany();
+    if(user.role === Role.PROVIDER){
+      const providerAppointments = appointments.filter(appointment => appointment.providerId.id === user.id);
+      const clientAppointments = appointments.filter(appointment => appointment.clientId.id === user.id);
 
-    return appointments;
+      const totalAppointments = {
+      providerAppointments,
+      clientAppointments
+    }
+    return totalAppointments;
+
+    }
+    else{
+      const providerAppointments = [];
+      const clientAppointments = appointments.filter(appointment => appointment.clientId.id === user.id);
+
+      
+      const totalAppointments = {
+      providerAppointments,
+      clientAppointments
+    }
+    return totalAppointments;
+    }
+
    
   
   }
@@ -245,7 +266,11 @@ export class AppointmentsService {
   //----------------------HELPERS----------------------
 
   private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
-  let day = new Date(date)
+  const paseDate = new Date(date);
+  // Forzamos el horario al mediodía
+  paseDate.setHours(12, 0, 0, 0);
+  
+    let day = paseDate
     .toLocaleDateString('en-US', { weekday: 'long' })
     .toUpperCase();
  
