@@ -29,6 +29,31 @@ export class UpdateProviderDto {
       profileImgUrl?: string;
     
       @ApiPropertyOptional({
+        example: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      })
+      @IsOptional()
+      days?: string[];
+
+      @ApiPropertyOptional({
+        example: ['06:00-09:00', '09:00-12:00', '12:00-15:00', '15:00-18:00', '18:00-21:00', '21:00-00:00'],
+      })
+      @IsOptional()
+      hours?: string[];
+
+      @ApiPropertyOptional({
+        example:['Puesta en valor / jardinería intensiva','Mantenimiento integral de jardín']
+      })
+      @IsOptional()
+      services?: string[];
+
+      
+      @ApiPropertyOptional({ example: 'Descripción del proveedor' })
+      @IsOptional()
+      @IsString()
+      about?: string;
+
+
+      @ApiPropertyOptional({
         example: '+521234567890',
       })
       @IsOptional()
