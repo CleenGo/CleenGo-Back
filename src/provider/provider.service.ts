@@ -62,8 +62,8 @@ async remove(id: string) {
 }
 
 
-async filterProviders(filters: { day?: string; hour?: string }) {
-  const { day, hour } = filters;
+async filterProviders(filters: { day?: string; hour?: string; category?: string; services?: string }) {
+  const { day, hour, category, services } = filters;
   
   const query = this.serviceprovider
     .createQueryBuilder('provider')
@@ -75,6 +75,14 @@ async filterProviders(filters: { day?: string; hour?: string }) {
 
   if (hour) {
     query.andWhere(':hour = ANY(provider.hours)', { hour });
+  }
+
+  if (filters.category) {
+    query.andWhere('provider.category.name = :category', { category });
+  }
+
+  if(filters.services){
+    query.andWhere(':services = ANY(provider.services.name)', { services: `%${services}%` });
   }
 
   return query.getMany();

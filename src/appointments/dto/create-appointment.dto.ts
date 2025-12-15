@@ -4,7 +4,7 @@ export class CreateAppointmentDto {
     date: Date;
     startTime: string;
     address: string;
-    service?: string;
+    service: string;
     notes: string;
 
 }

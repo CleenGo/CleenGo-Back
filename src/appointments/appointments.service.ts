@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { User } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
@@ -11,9 +11,14 @@ import { Role } from 'src/enum/role.enum';
 import { async } from 'rxjs';
 import { Service } from 'src/categories/entities/services.entity';
 import { Provider } from 'src/provider/entities/provider.entity';
+import { NodemailerService } from 'src/nodemailer/nodemailer.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AppointmentsService {
+  // 🔹 NUEVO: logger para mensajes de nodemailer / recovery
+    private readonly logger = new Logger(AppointmentsService.name);
+  
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
@@ -23,6 +28,8 @@ export class AppointmentsService {
     private readonly serviceRepository: Repository<Service>,
     @InjectRepository(Provider)
     private readonly providerRepository: Repository<Provider>,
+    private readonly nodemailerService: NodemailerService,
+
   ){}
   async create(createAppointmentDto: CreateAppointmentDto, authUser:any) {
 
@@ -37,9 +44,9 @@ export class AppointmentsService {
     const { service, date, startTime,  notes, providerEmail, address } =
       createAppointmentDto;
 
-      // !(categoru && appointmentDate && hour && notes && provider)
+    
     if (
-     //agregar service 
+      !service ||
       !date ||
       !startTime ||
       !notes ||
@@ -63,20 +70,20 @@ export class AppointmentsService {
 
   //busco el servicio solicitado en la appointment y el rpoveedor
   
-  // const foundService = await this.serviceRepository.findOneBy({name: service});
+  const foundService = await this.serviceRepository.findOneBy({name: service});
   const providerFound = await this.providerRepository.findOne({
     where: { email: providerEmail, role: Role.PROVIDER },
-    // relations: ['services'],
+    relations: ['services'],
   });
 
-  // if (!foundService) throw new NotFoundException('service not found');
+  if (!foundService) throw new NotFoundException('service not found');
   if (!providerFound) throw new NotFoundException('Provider not found');
 
-  // if (!providerFound.services.includes(foundService)) {
-  //   throw new BadRequestException(
-  //     `El proveedor no ofrece el servicio ${service}`,
-  //   );
-  // }
+  if (!providerFound.services.includes(foundService)) {
+    throw new BadRequestException(
+      `El proveedor no ofrece el servicio ${service}`,
+    );
+  }
    
   this.validateProviderWorksThatDay(providerFound, date);
   this.validateStartHourInWorkingRange(providerFound, startTime);
@@ -87,13 +94,32 @@ export class AppointmentsService {
 
   appointment.clientId = user;
   appointment.providerId = providerFound;
-  // appointment.services = foundService;
+  appointment.services = foundService;
   appointment.date = date;
   appointment.startHour = startTime;
   appointment.notes = notes;
   appointment.addressUrl = address;
 
+  const stringDate = this.formatDateDDMMYYYY(date);
+  
   await this.appointmentRepository.save(appointment);
+  await this.newAppointmentEmailProvider(
+  //    email:string,
+  providerFound.email,
+  // clientName:string,
+  user.name,
+  // providerName:string,
+  providerFound.name,
+  // serviceName:string,
+  foundService.name,
+  // date:string,
+  stringDate,
+  // time:string,
+  startTime,
+  // address:string
+  address
+  );
+  
   return appointment;
   }
 
@@ -113,8 +139,8 @@ export class AppointmentsService {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.clientId', 'client')
       .leftJoinAndSelect('appointment.providerId', 'provider')
-      // .leftJoinAndSelect('appointment.serviceId', 'service')
-      // .leftJoinAndSelect('appointment.serviceId.categoryId', 'category');
+      .leftJoinAndSelect('appointment.serviceId', 'service')
+      .leftJoinAndSelect('appointment.serviceId.categoryId', 'category');
 
       //filtro usando el usurio autenticado
     if (user.role === Role.CLIENT) {
@@ -263,9 +289,72 @@ export class AppointmentsService {
 
   }
 
+  async validatePendingAppointments() {
+    const providers = await this.providerRepository.find({where: {isActive: true}});
+
+    providers.forEach(async provider => {
+      const providerId = provider.id;
+      const appointments = await this.appointmentRepository.count({
+        where: {
+          providerId: { id: providerId },
+          status: AppointmentStatus.PENDING,
+        },
+      })
+    if (appointments > 0) {
+      await this.pendingAppointmentEmail(provider.email, provider.name, appointments);
+    }
+    });
+    };
+    
+
+  async upcommingAppointments() {
+    const providers = await this.providerRepository.find({where: {isActive: true, role: Role.PROVIDER}});
+
+    providers.forEach(async provider => {
+      const providerId = provider.id;
+      const { start, end } = this.getTomorrowRange();
+
+      const appointments = await this.appointmentRepository.find({
+        where: {
+          date: Between(start, end),
+          status: AppointmentStatus.CONFIRMEDPROVIDER,
+          providerId: { id: providerId },
+          
+        },
+        relations: ['client', 'provider', 'service'],
+      });
+      
+        if (appointments.length > 0) {
+          await this.upcommingAppointmentProvider(provider.name, provider.email, appointments);
+        }
+        });
+    
+    const clients = await this.userRepository.find({where: {isActive: true, role: Role.CLIENT}});
+
+    clients.forEach(async client => {
+      const clientId = client.id;
+      const { start, end } = this.getTomorrowRange();
+
+      const appointments = await this.appointmentRepository.find({
+        where: {
+          date: Between(start, end),
+          status: AppointmentStatus.CONFIRMEDPROVIDER,
+          clientId: { id: clientId },
+        },
+        relations: ['client', 'provider', 'service'],
+      });
+      
+        if (appointments.length > 0) {
+          await this.upcommingAppointmentClient(client.name, client.email, appointments);
+        }
+    })
+    };
+
+  
+
   //----------------------HELPERS----------------------
 
-  private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
+private validateProviderWorksThatDay(provider: Provider, date: string | Date) {
   const paseDate = new Date(date);
   // Forzamos el horario al mediodía
   paseDate.setHours(12, 0, 0, 0);
@@ -329,4 +418,402 @@ private timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
+private formatDateDDMMYYYY(date: Date | string): string {
+  const d = new Date(date);
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  return `${day}-${month}-${year}`;
+}
+
+private getTomorrowRange() {
+  const now = new Date();
+
+  const start = new Date(now);
+  start.setDate(start.getDate() + 1);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+//---------Nodemailer helper (creacion de un appointment)-------
+private async newAppointmentEmailProvider (
+  email:string,
+  clientName:string,
+  providerName:string,
+  serviceName:string,
+  date:string,
+  time:string,
+  address:string
+){ 
+  const subject = 'Tienes una nueva solicitud de turno en CleenGo🧼 ';
+  const html = `
+  <!DOCTYPE html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Nuevo servicio asignado</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+              
+              <!-- Header -->
+              <tr>
+                <td style="background: #27ae60; padding: 20px; color: #ffffff;">
+                  <h1 style="margin: 0; font-size: 22px;">📢 Nuevo servicio asignado</h1>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 24px; color: #333333;">
+                  <p style="font-size: 16px; margin-top: 0;">
+                    Hola <strong>${providerName}</strong>,
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Se te ha asignado un <strong>nuevo servicio</strong>.  
+                    A continuación encontrarás los detalles:
+                  </p>
+
+                  <!-- Details -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fb; border-radius: 6px; margin: 20px 0;">
+                    <tr>
+                      <td style="padding: 16px;">
+                        <p style="margin: 4px 0;"><strong>🧾 Servicio:</strong> ${serviceName}</p>
+                        <p style="margin: 4px 0;"><strong>👤 Cliente:</strong> ${clientName}</p>
+                        <p style="margin: 4px 0;"><strong>📅 Fecha:</strong> ${date}</p>
+                        <p style="margin: 4px 0;"><strong>⏰ Horario:</strong> ${time}</p>
+                        <p style="margin: 4px 0;"><strong>📍 Dirección:</strong> ${address}</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <p style="font-size: 15px;">
+                    Por favor, asegurate de presentarte en la fecha y horario indicados.
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Si por algún motivo no podés realizar el servicio, comunicate lo antes posible a través de la plataforma.
+                  </p>
+
+                  <p style="margin-top: 24px;">
+                    Gracias por tu compromiso.<br />
+                    <strong>Equipo de Coordinación</strong>
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+  const text = `¡Hola, ${providerName}!
+Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
+
+    try {
+      await this.nodemailerService.sendMail({
+        to:email,
+        subject,
+        html,
+        text,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
+      );
+    }
+
+}
+//---------Nodemailer helper (mail recordatorio de un appointment pendiente)-------
+private async pendingAppointmentEmail(
+  email:string, 
+  providerName:string, 
+  pendingCount: number,
+  ){
+  const html = `
+    <!DOCTYPE html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Acción requerida – Servicios pendientes</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+
+              <!-- Header -->
+              <tr>
+                <td style="background: #eb5757; padding: 20px; color: #ffffff;">
+                  <h1 style="margin: 0; font-size: 22px;">
+                    ⚠️ Acción requerida – Confirmá tus servicios
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 24px; color: #333333;">
+                  <p style="font-size: 16px; margin-top: 0;">
+                    Hola <strong>${providerName}</strong>,
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Tenés <strong>${pendingCount}</strong> servicio${pendingCount > 1 ? 's' : ''} 
+                    pendiente${pendingCount > 1 ? 's' : ''} de <strong>confirmación</strong>.
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Por favor, confirmá o rechazá cada servicio para asegurar una correcta coordinación.
+                  </p>
+
+                 
+
+                  <p style="font-size: 14px; color: #555;">
+                    ⚠️ Si no se confirma el servicio con antelación, podría ser reasignado.
+                  </p>
+
+                  <p style="margin-top: 24px;">
+                    Gracias por tu rápida respuesta.<br />
+                    <strong>Equipo de Coordinación</strong>
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+
+  const text = `¡Hola, ${providerName}! Tienes ${pendingCount} servicio${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} de confirmación.`;
+
+    try {
+      await this.nodemailerService.sendMail({
+        to:email,
+        subject:'Acción requerida – Servicios pendientes',
+        html,
+        text,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
+      );
+    }
+}
+
+private async upcommingAppointmentProvider (providerName:string, providerEmail:string, upcommingAppointments:Appointment[]){
+  const subject = `⏰ Recordatorio: tenés un servicio mañana`;
+  const html = `
+  <!DOCTYPE html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Recordatorio de servicio</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+
+              <!-- Header -->
+              <tr>
+                <td style="background: #27ae60; padding: 20px; color: #ffffff;">
+                  <h1 style="margin: 0; font-size: 22px;">
+                    ⏰ Recordatorio de servicio
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 24px; color: #333333;">
+                  <p style="font-size: 16px; margin-top: 0;">
+                    Hola <strong>${providerName}</strong>,
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Te recordamos que <strong>mañana</strong> tienes asignados los siguientes servicios:
+                  </p>
+
+                  <!-- Appointments list -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+                    ${upcommingAppointments
+                      .map(
+                        (a) => `
+                        <tr>
+                          <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;">👤 Cliente: ${a.clientId.name}</p>
+                            <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
+                            <p style="margin: 2px 0;">📍 ${a.addressUrl}</p>
+                          </td>
+                        </tr>
+                      `,
+                      )
+                      .join('')}
+                  </table>
+
+                  <p style="font-size: 15px;">
+                    Por favor, asegurate de presentarte en los horarios indicados.
+                  </p>
+
+                  <p style="margin-top: 24px;">
+                    Gracias por tu compromiso.<br />
+                    <strong>Equipo de Coordinación</strong>
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+  const text = `Hola ${providerName}, te recordamos que manana tenes un servicio. Por favor, asegurate de presentarte en la fecha y horario indicados. Gracias por tu compromiso.`
+  try{
+    await this.nodemailerService.sendMail({
+      to:providerEmail,
+      subject,
+      html,
+      text
+    });
+  } catch(error:any){
+    this.logger.error(`❌ Error enviando email recordatorio a ${providerEmail}: ${error.message}`);
+  }
+}
+private async upcommingAppointmentClient ( clientName:string, clientEmail:string, upcommingAppointments:Appointment[]){
+  const subject = `⏰ Recordatorio: tu servicio es mañana`
+  const html = `<!DOCTYPE html>
+  <html lang="es">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Recordatorio de servicio</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: Arial, sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" style="padding: 24px;">
+            <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; overflow: hidden;">
+
+              <!-- Header -->
+              <tr>
+                <td style="background: #2f80ed; padding: 20px; color: #ffffff;">
+                  <h1 style="margin: 0; font-size: 22px;">
+                    ⏰ Recordatorio de servicio
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 24px; color: #333333;">
+                  <p style="font-size: 16px; margin-top: 0;">
+                    Hola <strong>${clientName}</strong>,
+                  </p>
+
+                  <p style="font-size: 15px;">
+                    Te recordamos que <strong>mañana</strong> tienes programados los siguientes servicios:
+                  </p>
+
+                  <!-- Appointments list -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+                    ${upcommingAppointments
+                      .map(
+                        (a) => `
+                        <tr>
+                          <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;">👤 Proveedor: ${a.providerId.name}</p>
+                            <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
+                          </td>
+                        </tr>
+                      `,
+                      )
+                      .join('')}
+                  </table>
+
+                  <p style="font-size: 15px;">
+                    Si necesitás modificar o cancelar algún servicio, podés hacerlo desde la plataforma.
+                  </p>
+
+                  <p style="margin-top: 24px;">
+                    ¡Gracias por confiar en nosotros!<br />
+                    <strong>Equipo de Soporte</strong>
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+  `;
+
+  const text = `Hola ${clientName},
+Te recordamos que mañana tienes programado${upcommingAppointments.length > 1 ? 's' : ''} servicio${upcommingAppointments.length > 1 ? 's' : ''}`
+
+
+try{
+  await this.nodemailerService.sendMail({
+    to: clientEmail,
+    subject: subject,
+    html: html,
+    text: text,
+  });
+  } catch (error) {
+  this.logger.error(`Error al enviar el correo a ${clientEmail}:`, error);
+}
+}
 }
