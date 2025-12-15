@@ -35,7 +35,7 @@ export class SeedService implements OnApplicationBootstrap {
 
     const premium = this.planRepository.create({
       name: 'Premium',
-      price: 2999, // ejemplo en pesos Argentinos
+      price: 10, // ejemplo en dolares
       description: 'Mayor visibilidad y beneficios dentro de la aplicación',
       isActive: true,
     });
