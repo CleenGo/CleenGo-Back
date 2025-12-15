@@ -6,12 +6,11 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 export const getTypeOrmOptions = (): TypeOrmModuleOptions => ({
   type: 'postgres',
   host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT ?? '6543', 10), // para supabase puerto 6543
+  port: parseInt(process.env.DB_PORT ?? '5432', 10), // para supabase puerto 6543
   username: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   autoLoadEntities: true,
-  
 
   //dev: sincroniza; prod: usa migraciones
   synchronize: true,

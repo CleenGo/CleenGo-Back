@@ -26,21 +26,14 @@ export class Appointment {
 
 
 
-  @ManyToMany(() => Service)
-  @JoinTable({
-    name: 'appointment_services',
-    joinColumn: {
-      name: 'appointmentId',
-      referencedColumnName: 'id',
-    },
-    inverseJoinColumn: {
-      name: 'serviceId',
-      referencedColumnName: 'id',
-    },
-  })
-  services: Service[];
+  @ManyToOne(() => Service)
+  @JoinColumn({name: 'services_id'})
+  services: Service;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: false })
+  @Column({type: 'text', nullable: true})
+  notes: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   price: number;
 
   @Column({
