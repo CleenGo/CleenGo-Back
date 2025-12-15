@@ -1,14 +1,13 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, Repository } from 'typeorm';
+import { Between,  Repository } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { User } from 'src/user/entities/user.entity';
 import { AppointmentStatus } from 'src/enum/appointmenStatus.enum';
 import { filterAppointmentDto } from './dto/filter-appointment.dto';
 import { Role } from 'src/enum/role.enum';
-import { async } from 'rxjs';
 import { Service } from 'src/categories/entities/services.entity';
 import { Provider } from 'src/provider/entities/provider.entity';
 import { NodemailerService } from 'src/nodemailer/nodemailer.service';
@@ -31,6 +30,39 @@ export class AppointmentsService {
     private readonly nodemailerService: NodemailerService,
 
   ){}
+
+  async getParticipantsOrFail(appointmentId: string) {
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id: appointmentId },
+      relations: { clientId: true, providerId: true },
+      select: {
+        id: true,
+        status: true,
+        isActive: true,
+        clientId: { id: true },
+        providerId: { id: true },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('La cita no existe');
+    }
+
+    if (!appointment.isActive) {
+      throw new ForbiddenException('La cita no está activa');
+    }
+
+    if (appointment.status !== AppointmentStatus.CONFIRMEDPROVIDER) {
+      throw new ForbiddenException(
+        'El chat solo está disponible cuando la cita ha sido confirmada por el proveedor',
+      );
+    }
+
+    return {
+      clientId: appointment.clientId?.id,
+      providerId: appointment.providerId?.id,
+    };
+  }
   async create(createAppointmentDto: CreateAppointmentDto, authUser:any) {
 
     const user = await this.userRepository.findOne({
@@ -70,20 +102,26 @@ export class AppointmentsService {
 
   //busco el servicio solicitado en la appointment y el rpoveedor
   
-  const foundService = await this.serviceRepository.findOneBy({name: service});
+  const foundService = await this.serviceRepository.findOne({where: {name: service}, relations: ['category']});
   const providerFound = await this.providerRepository.findOne({
     where: { email: providerEmail, role: Role.PROVIDER },
     relations: ['services'],
   });
 
   if (!foundService) throw new NotFoundException('service not found');
-  if (!providerFound) throw new NotFoundException('Provider not found');
 
-  if (!providerFound.services.includes(foundService)) {
-    throw new BadRequestException(
-      `El proveedor no ofrece el servicio ${service}`,
-    );
-  }
+  if (!providerFound) throw new NotFoundException('Provider not found');
+ 
+
+  const hasService = providerFound.services.some(
+  (providerService) => providerService.id === foundService.id,
+);
+
+if (!hasService) {
+  throw new BadRequestException(
+    `the provider ${providerFound.name} does not offer ${service}`,
+  );
+}
    
   this.validateProviderWorksThatDay(providerFound, date);
   this.validateStartHourInWorkingRange(providerFound, startTime);
@@ -139,16 +177,10 @@ export class AppointmentsService {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.clientId', 'client')
       .leftJoinAndSelect('appointment.providerId', 'provider')
-      .leftJoinAndSelect('appointment.serviceId', 'service')
-      .leftJoinAndSelect('appointment.serviceId.categoryId', 'category');
+      .leftJoinAndSelect('appointment.services', 'service')
+      // .leftJoinAndSelect('appointment.services.category', 'category');
 
-      //filtro usando el usurio autenticado
-    if (user.role === Role.CLIENT) {
-      query.where('client.id = :user', { user: user.id });
-    } else if (user.role === Role.PROVIDER) {
-      query.where('provider.id = :user', { user: user.id });
-    }
-    
+
     //preparo la query para filtrar usando los filtros de busqueda
     if (filters.status) {
       query.andWhere('appointment.status = :status', {
@@ -156,28 +188,29 @@ export class AppointmentsService {
       });
     }
 
-    if (filters.category) {
-      query.andWhere('service.categoryId.name = :category', {
-        category: filters.category,
-      });
-    }
+    // if (filters.category) {
+    //   query.andWhere('services.category.name = :category', {
+    //     category: filters.category,
+    //   });
+    // }
 
     //el filtro por proveedor contratado que solo sera para el cliente
     if (filters.provider) {
-      query.andWhere('provider_id.name = :provider', {
+      query.andWhere('provider.name = :provider', {
         provider: filters.provider,
       });
     }
 
     //el filtro por cliente es solo para el proveedor
     if (filters.client) {
-      query.andWhere('client_id.name = :client', {
+      query.andWhere('client.name = :client', {
         client: filters.client,
       });
     }
 
     //el filtro por fecha
     if (filters.date) {
+
       query.andWhere('appointment.date = :date', {
         date: filters.date,
       });
@@ -197,7 +230,7 @@ export class AppointmentsService {
     return totalAppointments;
 
     }
-    else{
+    else if(user.role === Role.CLIENT){
       const providerAppointments = [];
       const clientAppointments = appointments.filter(appointment => appointment.clientId.id === user.id);
 
