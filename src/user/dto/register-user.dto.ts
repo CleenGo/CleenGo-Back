@@ -66,24 +66,6 @@ export class RegisterUserDto {
   @IsAdultDate()
   birthDate: Date;
 
-  @ApiProperty({
-    example: 'https://example.com/profile.jpg',
-    description: 'URL de la imagen de perfil del usuario',
-  })
-  @IsOptional()
-  @IsUrl()
-  profileImgUrl: string;
-
-  @ApiProperty({
-    example: '+521234567890',
-    description: 'Número de teléfono de quien se registra',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @MinLength(10)
-  @MaxLength(15)
-  phone: string;
-
   @ApiHideProperty()
   // @IsEnum(Role)
   role: string;
