@@ -59,13 +59,23 @@ export class AuthService {
       throw new BadRequestException(
         '⚠️ Ya existe un usuario registrado con ese email',
       );
+    
+    const emailExtension = email.split('@')[1];
+
+    let role
+
+    if(emailExtension === 'cleengo.com'){
+      role = Role.ADMIN
+    }else{
+      role = Role.CLIENT
+    }
 
     const { data, error } = await this.supabaseClient.auth.signUp({
       email,
       password,
       options: {
         data: {
-          role: 'client',
+          role,
           name,
           surname,
          
@@ -91,7 +101,7 @@ export class AuthService {
     const birthDateValue =
       birthDate instanceof Date ? birthDate : new Date(birthDate);
 
-    console.log('Role.CLIENT =>', Role.CLIENT);
+    console.log('Role =>', role);
 
     const newUser = this.userRepository.create({
       name: formattedName,
@@ -100,7 +110,7 @@ export class AuthService {
       passwordUrl: supabaseUser.id,
       birthDate: birthDateValue,
       
-      role: Role.CLIENT,
+      role: role,
     });
 
     const savedUser = await this.userRepository.save(newUser);

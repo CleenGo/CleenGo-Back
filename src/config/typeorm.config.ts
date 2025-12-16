@@ -12,11 +12,27 @@ export const getTypeOrmOptions = (): TypeOrmModuleOptions => ({
   database: process.env.DB_NAME,
   autoLoadEntities: true,
 
-  //dev: sincroniza; prod: usa migraciones
+  // dev: sincroniza; prod: usa migraciones
   synchronize: true,
   // migrations: ['src/migrations/**/*{.ts,.js}'],
 
+  // Dejamos el logging como lo tenías para no cambiar comportamiento
   logging: process.env.NODE_ENV === 'development' ? false : false,
   dropSchema: process.env.NODE_ENV === 'development' ? false : false,
+
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+
+  /**
+   * 👇 Configuración del pool de conexiones de `pg`
+   * - max: Máximo de conexiones simultáneas (por defecto 10 si no defines env).
+   * - idleTimeoutMillis: Después de cuánto tiempo una conexión inactiva se cierra.
+   * - connectionTimeoutMillis: Tiempo máximo esperando una nueva conexión.
+   * - keepAlive: Mantiene viva la conexión para evitar cortes inesperados.
+   */
+  extra: {
+    max: Number(process.env.DB_MAX_CONNECTIONS ?? 10),
+    idleTimeoutMillis: 10_000, // 10 segundos
+    connectionTimeoutMillis: 5_000, // 5 segundos
+    keepAlive: true,
+  },
 });
