@@ -3,11 +3,12 @@ import { BadRequestException, Injectable, NotFoundException, UseGuards } from '@
 import { RegisterProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository ,Like } from 'typeorm';
+import { Repository ,Like, In } from 'typeorm';
 import { Provider } from './entities/provider.entity';
 import { Role } from 'src/enum/role.enum';
 import { Review } from 'src/reviews/entities/review.entity';
 import { Appointment } from 'src/appointments/entities/appointment.entity';
+import { Service } from 'src/categories/entities/services.entity';
 @Injectable()
 export class ProviderService {
 
@@ -15,7 +16,10 @@ export class ProviderService {
   private readonly serviceprovider :Repository<Provider>,
 
   @InjectRepository(Appointment)
-  private readonly appoimentService :Repository<Appointment>
+  private readonly appoimentService :Repository<Appointment>,
+
+  @InjectRepository(Service)
+  private readonly serviceRepository :Repository<Service>
 
   
 ){}
@@ -38,16 +42,32 @@ export class ProviderService {
   }
 
 
-    async update(id: string, UpdateProviderDto: UpdateProviderDto) {
-  const provider = await this.serviceprovider.findOne({ where: {  id } });
+ async update(id: string, dto: UpdateProviderDto) {
+  const provider = await this.serviceprovider.findOne({
+    where: { id },
+    relations: ['services'],
+  });
 
   if (!provider) {
     throw new NotFoundException(`El proveedor con id ${id} no existe`);
   }
 
-  Object.assign(provider, UpdateProviderDto); 
+  // 👉 columnas simples
+  const { services, ...providerData } = dto;
+  Object.assign(provider, providerData);
+
+  // 👉 relación ManyToMany
+  if (services) {
+    const providerServices = await this.serviceRepository.findBy({
+      name: In(services),
+    });
+
+    provider.services = providerServices;
+  }
+
   return await this.serviceprovider.save(provider);
 }
+
 
 
 async remove(id: string) {

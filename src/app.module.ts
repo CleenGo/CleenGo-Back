@@ -21,6 +21,7 @@ import { SuscriptionPlanModule } from './suscription-plan/suscription-plan.modul
 import { RedisModule } from './redis/redis-cache.module';
 import { DashboardCacheModule } from './Dashboard/dashboard-cache.module';
 import { DashboardCronModule } from './Dashboard/dashboard-cron.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -42,13 +43,13 @@ import { DashboardCronModule } from './Dashboard/dashboard-cron.module';
     FileUploadModule,
     UserModule,
     ReviewsModule,
-    CategoriesModule,
     SeedModule,
     NodemailerModule,
     SuscriptionPlanModule,
     RedisModule,
     DashboardCacheModule,
     DashboardCronModule,
+    ChatModule,
   ],
 })
 export class AppModule {}
