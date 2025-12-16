@@ -137,7 +137,7 @@ if (!hasService) {
    
   this.validateProviderWorksThatDay(providerFound, date);
   this.validateStartHourInWorkingRange(providerFound, startTime);
-  this.validateNoStartOverlap(providerFound.id, date, startTime);
+  this.validateNoStartOverlap(providerFound, date, startTime);
   
   //CREACION DEL APPOINTMENT
   const appointment = new Appointment();
@@ -453,30 +453,36 @@ if (!hasService) {
     }
   }
   private async validateNoStartOverlap(
-    providerId: string,
-    date: Date | string,
+    provider: Provider,
+    date: string|Date,
     startHour: string,
   ) {
     const existingAppointments = await this.appointmentRepository.find({
-      where: {
-        providerId: { id: providerId },
-        date: new Date(date),
-        isActive: true,
-      },
     });
+
+    console.log(provider)
+    console.log(existingAppointments);
 
     const newStart = this.timeToMinutes(startHour);
+    console.log(newStart);
 
-    const hasOverlap = existingAppointments.some((a) => {
-      const appointmentStart = this.timeToMinutes(a.startHour);
-      const appointmentEnd = this.timeToMinutes(a.endHour);
-      return newStart >= appointmentStart && newStart < appointmentEnd;
-    });
+    if(existingAppointments){
 
-    if (hasOverlap) {
-      throw new BadRequestException(
-        `Provider already has an appointment at ${startHour}`,
-      );
+      const hasOverlap = existingAppointments.forEach((a) => {
+        const appointmentStart = this.timeToMinutes(a.startHour);
+        console.log(appointmentStart);
+        const appointmentEnd = this.timeToMinutes(a.endHour);
+  
+        console.log(newStart> appointmentStart)
+        return newStart > appointmentStart && newStart < appointmentEnd;
+      });
+  
+      if (hasOverlap!== undefined) {
+        throw new BadRequestException(
+          `Provider already has an appointment at ${startHour}`,
+        );
+
+    }
     }
   }
   private timeToMinutes(time: string): number {
