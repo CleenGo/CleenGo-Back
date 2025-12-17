@@ -9,6 +9,7 @@ import {
   Body,
   BadRequestException,
   NotFoundException,
+  Param,
 } from '@nestjs/common';
 import { SuscriptionService } from './suscription.service';
 import Stripe from 'stripe';
@@ -111,7 +112,7 @@ export class SuscriptionController {
     console.log('✅ Evento verificado:', event.type);
 
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object;
 
       try {
         await this.subscriptionService.confirmPayment(session);
@@ -123,5 +124,39 @@ export class SuscriptionController {
     }
 
     return res.status(200).json({ received: true });
+  }
+
+  @Get('provider/:providerId')
+  async getProviderSubscription(@Param('providerId') providerId: string) {
+    if (!providerId) {
+      throw new BadRequestException('providerId is required');
+    }
+
+    const subscription =
+      await this.subscriptionService.findSubscriptionByProviderId(providerId);
+
+    if (!subscription) {
+      return null; // No error, solo null si no existe
+    }
+
+    return {
+      id: subscription.id,
+      paymentStatus: subscription.paymentStatus,
+      isActive: subscription.isActive,
+      startDate: subscription.startDate,
+      plan: subscription.plan
+        ? {
+            id: subscription.plan.id,
+            name: subscription.plan.name,
+            price: subscription.plan.price,
+            description: subscription.plan.description,
+          }
+        : null,
+      provider: {
+        id: subscription.provider.id,
+        name: subscription.provider.name,
+        email: subscription.provider.email,
+      },
+    };
   }
 }
