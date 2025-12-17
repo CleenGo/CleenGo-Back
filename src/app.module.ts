@@ -22,6 +22,7 @@ import { RedisModule } from './redis/redis-cache.module';
 import { DashboardCacheModule } from './Dashboard/dashboard-cache.module';
 import { DashboardCronModule } from './Dashboard/dashboard-cron.module';
 import { ChatModule } from './chat/chat.module';
+import { ServicesModule } from './services/services.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { ChatModule } from './chat/chat.module';
     DashboardCacheModule,
     DashboardCronModule,
     ChatModule,
+    ServicesModule,
   ],
 })
 export class AppModule {}

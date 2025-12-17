@@ -1,4 +1,3 @@
-// CleenGo-Back/src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common/pipes/validation.pipe';
@@ -9,11 +8,17 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    bodyParser: false, // 🔥 CLAVE
+    rawBody: true, // ← Importante para webhooks
   });
   app.use('/subscription/webhook', express.raw({ type: 'application/json' }));
 
-  app.use(json());
+  app.use(
+    json({
+      verify: (req: any, res, buf) => {
+        req.rawBody = buf; // Guardar raw body para webhook
+      },
+    }),
+  );
   app.enableCors({
     origin: process.env.FRONT_URL,
     credentials: true,
@@ -44,3 +49,4 @@ async function bootstrap() {
 }
 
 bootstrap();
+
