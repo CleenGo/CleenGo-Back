@@ -134,10 +134,10 @@ if (!hasService) {
     `the provider ${providerFound.name} does not offer ${service}`,
   );
 }
-   
+  
   this.validateProviderWorksThatDay(providerFound, date);
   this.validateStartHourInWorkingRange(providerFound, startTime);
-  this.validateNoStartOverlap(providerFound.id, date, startTime);
+  await this.validateNoStartOverlap(providerFound.id, appointmentDateType, startTime);
   
   //CREACION DEL APPOINTMENT
   const appointment = new Appointment();
@@ -258,6 +258,64 @@ if (!hasService) {
   
   }
 
+    async adminFindAllAppointments( filters:filterAppointmentDto) {
+    
+    console.log(filters);
+
+    //traigo todas las appointments
+    const query = this.appointmentRepository
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.clientId', 'client')
+      .leftJoinAndSelect('appointment.providerId', 'provider')
+      .leftJoinAndSelect('appointment.services', 'service')
+      // .leftJoinAndSelect('appointment.services.category', 'category');
+
+
+    //preparo la query para filtrar usando los filtros de busqueda
+    if (filters.status) {
+      query.andWhere('appointment.status = :status', {
+        status: filters.status,
+      });
+    }
+
+    if (filters.category) {
+      query.andWhere('services.category.name = :category', {
+        category: filters.category,
+      });
+    }
+
+    //el filtro por proveedor contratado que solo sera para el cliente
+    if (filters.provider) {
+      query.andWhere('provider.name = :provider', {
+        provider: filters.provider,
+      });
+    }
+
+    //el filtro por cliente es solo para el proveedor
+    if (filters.client) {
+      query.andWhere('client.name = :client', {
+        client: filters.client,
+      });
+    }
+
+    //el filtro por fecha
+    if (filters.date) {
+
+      query.andWhere('appointment.date = :date', {
+        date: filters.date,
+      });
+    }
+
+    const totalAppointments = query.orderBy('appointment.date', 'DESC');
+
+  
+    return totalAppointments;
+    }
+
+   
+  
+  
+
   async findOne(id: string, authUser) {
     const user = await this.userRepository.findOne({where: {id: authUser.id}});
     if(!user) throw new BadRequestException('⚠️ User not found');
@@ -300,8 +358,7 @@ if (!hasService) {
 
     const user = await this.userRepository.findOne({where: {id: authUser.id}});
     if (!user) throw new BadRequestException('⚠️ User not found');
-    console.log(user);
-    console.log(appointment);
+    
 
     if(appointment.clientId.id !== user.id && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
     
@@ -435,54 +492,77 @@ if (!hasService) {
     }
   }
   private validateStartHourInWorkingRange(
-    provider: Provider,
-    startHour: string,
-  ) {
-    const start = this.timeToMinutes(startHour);
-    console.log(provider.hours)
+  provider: Provider,
+  startHour: string,
+) {
+  const start = this.timeToMinutes(startHour);
 
-    const isInside = provider.hours?.some((range) => {
-      const [from, to] = range.split('-');
-      const fromMin = this.timeToMinutes(from);
-      const toMin = this.timeToMinutes(to);
-      return start >= fromMin && start <= toMin;
-    });
-
-    if (!isInside) {
-      throw new BadRequestException(`Provider is not working at ${startHour}`);
-    }
+  if (start === null) {
+    throw new BadRequestException('Invalid start hour format');
   }
+
+  const isInside = provider.hours?.some((range) => {
+    const [from, to] = range.split('-');
+
+    const fromMin = this.timeToMinutes(from);
+    const toMin = this.timeToMinutes(to);
+
+    if (fromMin === null || toMin === null) return false;
+
+    return start >= fromMin && start <= toMin;
+  });
+
+  if (!isInside) {
+    throw new BadRequestException(
+      `Provider is not working at ${startHour}`,
+    );
+  }
+}
   private async validateNoStartOverlap(
     providerId: string,
-    date: Date | string,
+    date: Date,
     startHour: string,
   ) {
-    const existingAppointments = await this.appointmentRepository.find({
-      where: {
-        providerId: { id: providerId },
-        date: new Date(date),
-        isActive: true,
-      },
-    });
-
-    const newStart = this.timeToMinutes(startHour);
-
-    const hasOverlap = existingAppointments.some((a) => {
-      const appointmentStart = this.timeToMinutes(a.startHour);
-      const appointmentEnd = this.timeToMinutes(a.endHour);
-      return newStart >= appointmentStart && newStart < appointmentEnd;
-    });
-
-    if (hasOverlap) {
-      throw new BadRequestException(
-        `Provider already has an appointment at ${startHour}`,
-      );
+    date.setHours(0, 0, 0, 0);
+    const existingAppointments = await this.appointmentRepository.find({where:{
+      providerId: { id: providerId },
+      date: date,
+      isActive: true
     }
+    });
+
+  for (const a of existingAppointments) {
+  if (!a.startHour && !a.endHour) continue;
+
+  const appointmentStart = this.timeToMinutes(a.startHour);
+  const appointmentEnd = this.timeToMinutes(a.endHour);
+  const newStart = this.timeToMinutes(startHour);
+
+  if (
+    (appointmentStart !== null &&
+    appointmentEnd !== null &&
+    newStart !== null &&
+    newStart >= appointmentStart &&
+    newStart < appointmentEnd)|| (a.startHour === startHour)
+  ) {
+    throw new BadRequestException(
+      `Provider already has an appointment at ${startHour}`,
+    );
   }
-  private timeToMinutes(time: string): number {
-    const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
+}
+
+
+
+  
+
+   
   }
+  private timeToMinutes(time?: string | null): number | null {
+  if (!time) return null;
+
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
 
   private formatDateDDMMYYYY(date: Date | string): string {
     const d = new Date(date);
