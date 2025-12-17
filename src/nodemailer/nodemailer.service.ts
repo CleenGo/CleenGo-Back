@@ -1,67 +1,61 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
+import * as sgMail from '@sendgrid/mail';
 
 @Injectable()
 export class NodemailerService {
   private readonly logger = new Logger(NodemailerService.name);
-  private readonly resend: Resend;
 
-  constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('RESEND_API_KEY');
+  constructor(private readonly config: ConfigService) {
+    const apiKey = this.config.get<string>('SENDGRID_API_KEY');
 
     if (!apiKey) {
-      throw new Error('RESEND_API_KEY is missing');
+      this.logger.error('❌ Falta SENDGRID_API_KEY en variables de entorno');
+      throw new Error('SENDGRID_API_KEY missing');
     }
 
-    this.resend = new Resend(apiKey);
+    sgMail.setApiKey(apiKey);
+    this.logger.log('✅ SendGrid configurado');
   }
 
-  async sendMail(options: {
+  async sendMail(params: {
     to: string;
     subject: string;
     html: string;
     text?: string;
   }) {
-    const fromName =
-      this.configService.get<string>('MAIL_FROM_NAME') ?? 'CleenGo';
-    const fromAddress = this.configService.get<string>('MAIL_FROM_ADDRESS');
+    const { to, subject, html, text } = params;
 
-    // ✅ clave: no permitimos fallback a gmail
-    if (!fromAddress) {
-      this.logger.error('MAIL_FROM_ADDRESS is missing');
-      throw new InternalServerErrorException('Email sender not configured');
+    const fromEmail = this.config.get<string>('MAIL_FROM_ADDRESS');
+    const fromName = this.config.get<string>('MAIL_FROM_NAME') || 'CleenGo';
+
+    if (!fromEmail) {
+      this.logger.error('❌ Falta MAIL_FROM_ADDRESS en variables de entorno');
+      throw new Error('MAIL_FROM_ADDRESS missing');
     }
 
-    const from = `"${fromName}" <${fromAddress}>`;
-
     try {
-      const { data, error } = await this.resend.emails.send({
-        from,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-      });
+      const msg = {
+        to,
+        from: { email: fromEmail, name: fromName },
+        subject,
+        text: text ?? subject,
+        html,
+      };
 
-      if (error) {
-        this.logger.error(`❌ Resend error: ${error.message}`);
-        throw new Error(error.message);
-      }
+      const res = await sgMail.send(msg);
 
-      this.logger.log(`📧 Email enviado a ${options.to}. Id: ${data?.id}`);
-      return data;
+      this.logger.log(
+        `✅ Email enviado a ${to} (SendGrid status: ${res?.[0]?.statusCode})`,
+      );
+      return res;
     } catch (err: any) {
       this.logger.error(
-        `❌ Error enviando email (Resend) a ${options.to}: ${err.message}`,
+        `❌ Error enviando email (SendGrid) a ${to}: ${err?.message || err}`,
       );
-      throw new InternalServerErrorException(
-        'No se pudo enviar el correo. Intenta más tarde.',
-      );
+      if (err?.response?.body)
+        this.logger.error(JSON.stringify(err.response.body));
+      throw err;
     }
   }
 }

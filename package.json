@@ -34,6 +34,7 @@
     "@nestjs/swagger": "^11.2.1",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.9",
+    "@sendgrid/mail": "^8.1.6",
     "@supabase/supabase-js": "^2.81.1",
     "cache-manager": "^7.2.6",
     "cache-manager-ioredis-yet": "^2.1.2",
