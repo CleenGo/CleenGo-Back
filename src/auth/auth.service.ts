@@ -117,7 +117,7 @@ export class AuthService {
     const { passwordUrl, ...safeUser } = savedUser;
 
     // 🔹 NUEVO: enviar correo de bienvenida
-    this.sendWelcomeEmail(safeUser.email, safeUser.name, safeUser.role);
+    await this.sendWelcomeEmail(safeUser.email, safeUser.name, safeUser.role);
 
     return {
       message: '✅ Usuario cliente registrado exitosamente',
@@ -190,7 +190,7 @@ export class AuthService {
     const { passwordUrl, ...safeProvider } = savedProvider;
 
     // 🔹 NUEVO: correo de bienvenida para proveedor
-    this.sendWelcomeEmail(
+    await this.sendWelcomeEmail(
       safeProvider.email,
       safeProvider.name,
       safeProvider.role,
@@ -317,6 +317,7 @@ export class AuthService {
 
     try {
       user = await this.userRepository.save(newUser);
+      await this.sendWelcomeEmail(user.email, user.name, user.role);
     } catch (err: any) {
       // Si falla por email duplicado (error 23505) → recuperamos el user y hacemos login
       if (err.code === '23505') {
@@ -509,12 +510,13 @@ Si no fuiste tú, puedes ignorar este correo. El enlace expira en ${expirationTi
     `;
 
     try {
-      this.nodemailerService.sendMail({
+      await this.nodemailerService.sendMail({
         to: user.email,
         subject,
         html,
         text,
       });
+      this.logger.log(`✅ Email reset enviado a ${user.email}`);
     } catch (error: any) {
       this.logger.error(
         `❌ Error enviando email de restablecimiento a ${user.email}: ${error.message}`,
