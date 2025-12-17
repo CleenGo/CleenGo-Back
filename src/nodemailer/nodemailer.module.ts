@@ -1,3 +1,4 @@
+// CleenGo-Back/src/nodemailer/nodemailer.module.ts
 import { Module } from '@nestjs/common';
 import { NodemailerService } from './nodemailer.service';
 import { NodemailerController } from './nodemailer.controller';

@@ -57,8 +57,10 @@ export class SuscriptionService {
           quantity: 1,
         },
       ],
-      success_url: process.env.FRONT_URL + '/success',
-      cancel_url: process.env.FRONT_URL + '/cancel',
+      // success_url: process.env.FRONT_URL + '/success',
+      // cancel_url: process.env.FRONT_URL + '/cancel',
+      success_url: `${process.env.FRONT_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONT_URL}/cancel`,
     });
 
     return { url: session.url };
@@ -82,5 +84,19 @@ export class SuscriptionService {
     subscription.paymentStatus = true;
     subscription.isActive = true;
     await this.subscriptionRepo.save(subscription);
+  }
+
+  async findProviderByEmail(email: string) {
+    return this.providerRepo.findOne({
+      where: { email },
+      relations: ['suscription'],
+    });
+  }
+
+  async findSubscriptionByProviderId(providerId: string) {
+    return this.subscriptionRepo.findOne({
+      where: { provider: { id: providerId } },
+      relations: ['provider', 'plan'],
+    });
   }
 }

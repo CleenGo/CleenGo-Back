@@ -1,4 +1,4 @@
-// src/nodemailer/nodemailer.controller.ts
+// CleenGo-Back/src/nodemailer/nodemailer.controller.ts
 import { Body, Controller, Post } from '@nestjs/common';
 import { NodemailerService } from './nodemailer.service';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
