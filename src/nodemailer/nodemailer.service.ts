@@ -16,9 +16,11 @@ export class NodemailerService {
 
   constructor(private readonly configService: ConfigService) {
     const host = this.configService.get<string>('MAIL_HOST');
-    const port = this.configService.get<number>('MAIL_PORT');
+    const port = Number(this.configService.get<string>('MAIL_PORT'));
     const user = this.configService.get<string>('MAIL_USER');
     const pass = this.configService.get<string>('MAIL_PASSWORD');
+
+    console.log('[MAIL DEBUG]', { host, port, user: !!user, pass: !!pass });
 
     this.transporter = nodemailer.createTransport({
       host, // smtp.gmail.com
