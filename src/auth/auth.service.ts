@@ -1,3 +1,4 @@
+//CleenGo-Back/src/auth/auth.service.ts
 import {
   BadRequestException,
   Inject,
@@ -48,8 +49,7 @@ export class AuthService {
 
   //? -------- Registro de cliente --------
   async clientSignUp(registerUserDto: RegisterUserDto) {
-    const { name, surname, email, password, birthDate } =
-      registerUserDto;
+    const { name, surname, email, password, birthDate } = registerUserDto;
 
     const existingUser = await this.userRepository.findOne({
       where: { email },
@@ -59,15 +59,15 @@ export class AuthService {
       throw new BadRequestException(
         '⚠️ Ya existe un usuario registrado con ese email',
       );
-    
+
     const emailExtension = email.split('@')[1];
 
-    let role
+    let role;
 
-    if(emailExtension === 'cleengo.com'){
-      role = Role.ADMIN
-    }else{
-      role = Role.CLIENT
+    if (emailExtension === 'cleengo.com') {
+      role = Role.ADMIN;
+    } else {
+      role = Role.CLIENT;
     }
 
     const { data, error } = await this.supabaseClient.auth.signUp({
@@ -78,7 +78,6 @@ export class AuthService {
           role,
           name,
           surname,
-         
         },
       },
     });
@@ -109,7 +108,7 @@ export class AuthService {
       email,
       passwordUrl: supabaseUser.id,
       birthDate: birthDateValue,
-      
+
       role: role,
     });
 
@@ -118,7 +117,7 @@ export class AuthService {
     const { passwordUrl, ...safeUser } = savedUser;
 
     // 🔹 NUEVO: enviar correo de bienvenida
-    await this.sendWelcomeEmail(safeUser.email, safeUser.name, safeUser.role);
+    this.sendWelcomeEmail(safeUser.email, safeUser.name, safeUser.role);
 
     return {
       message: '✅ Usuario cliente registrado exitosamente',
@@ -135,14 +134,7 @@ export class AuthService {
 
   //? -------- Registro de proveedor --------
   async providerSignUp(registerProviderDto: RegisterProviderDto) {
-    const {
-      name,
-      surname,
-      email,
-      password,
-      birthDate,
-     
-    } = registerProviderDto;
+    const { name, surname, email, password, birthDate } = registerProviderDto;
 
     const existingUser = await this.userRepository.findOne({
       where: { email },
@@ -189,7 +181,7 @@ export class AuthService {
       email,
       passwordUrl: supabaseProvider.id,
       birthDate: birthDateValue,
-  
+
       role: Role.PROVIDER,
     });
 
@@ -198,7 +190,7 @@ export class AuthService {
     const { passwordUrl, ...safeProvider } = savedProvider;
 
     // 🔹 NUEVO: correo de bienvenida para proveedor
-    await this.sendWelcomeEmail(
+    this.sendWelcomeEmail(
       safeProvider.email,
       safeProvider.name,
       safeProvider.role,
@@ -437,6 +429,8 @@ Gracias por registrarte como ${roleLabel} en CleenGo.`;
         html,
         text,
       });
+
+      this.logger.log(`✅ Email de bienvenida enviado a ${to}`);
     } catch (error: any) {
       this.logger.error(
         `❌ Error enviando email de bienvenida a ${to}: ${error.message}`,
@@ -515,7 +509,7 @@ Si no fuiste tú, puedes ignorar este correo. El enlace expira en ${expirationTi
     `;
 
     try {
-      await this.nodemailerService.sendMail({
+      this.nodemailerService.sendMail({
         to: user.email,
         subject,
         html,

@@ -66,7 +66,7 @@ export class AppointmentsService {
 
     if (appointment.status !== AppointmentStatus.CONFIRMEDPROVIDER) {
       throw new ForbiddenException(
-        'El chat solo est├б disponible cuando la cita ha sido confirmada por el proveedor',
+        'El chat solo está disponible cuando la cita ha sido confirmada por el proveedor',
       );
     }
 
@@ -75,17 +75,28 @@ export class AppointmentsService {
       providerId: appointment.providerId?.id,
     };
   }
-  async create(createAppointmentDto: CreateAppointmentDto, authUser: any) {
+    async create(createAppointmentDto: CreateAppointmentDto, authUser:any) {
+
     const user = await this.userRepository.findOne({
       where: { id: authUser.id },
     });
 
     if (!user) throw new NotFoundException('user not found');
 
-    const { service, date, startTime, notes, providerEmail, address } =
+    
+
+    const { service, date, startTime,  notes, providerEmail, address } =
       createAppointmentDto;
 
-    if (!service || !date || !startTime || !notes || !providerEmail || !address)
+    
+    if (
+      !service ||
+      !date ||
+      !startTime ||
+      !notes ||
+      !providerEmail||
+      !address
+    )
       throw new BadRequestException('all required fields must be complete');
 
     //verifico que la fecha de emision sea posterior a la actual
@@ -95,81 +106,81 @@ export class AppointmentsService {
         appointmentDateType.getTimezoneOffset(),
     );
     const today = new Date();
-
+    
     if (appointmentDateType <= today)
       throw new BadRequestException(
-        'the appointment date must be later than the current date',
-      );
+    'the appointment date must be later than the current date',
+  );
 
-    //busco el servicio solicitado en la appointment y el rpoveedor
+  //busco el servicio solicitado en la appointment y el rpoveedor
+  
+  const foundService = await this.serviceRepository.findOne({where: {name: service}, relations: ['category']});
+  const providerFound = await this.providerRepository.findOne({
+    where: { email: providerEmail, role: Role.PROVIDER },
+    relations: ['services'],
+  });
 
-    const foundService = await this.serviceRepository.findOne({
-      where: { name: service },
-      relations: ['category'],
-    });
-    const providerFound = await this.providerRepository.findOne({
-      where: { email: providerEmail, role: Role.PROVIDER },
-      relations: ['services'],
-    });
+  if (!foundService) throw new NotFoundException('service not found');
 
-    if (!foundService) throw new NotFoundException('service not found');
+  if (!providerFound) throw new NotFoundException('Provider not found');
+ 
 
-    if (!providerFound) throw new NotFoundException('Provider not found');
+  const hasService = providerFound.services.some(
+  (providerService) => providerService.id === foundService.id,
+);
 
-    const hasService = providerFound.services.some(
-      (providerService) => providerService.id === foundService.id,
-    );
+if (!hasService) {
+  throw new BadRequestException(
+    `the provider ${providerFound.name} does not offer ${service}`,
+  );
+}
+   
+  this.validateProviderWorksThatDay(providerFound, date);
+  this.validateStartHourInWorkingRange(providerFound, startTime);
+  this.validateNoStartOverlap(providerFound.id, date, startTime);
+  
+  //CREACION DEL APPOINTMENT
+  const appointment = new Appointment();
 
-    if (!hasService) {
-      throw new BadRequestException(
-        `the provider ${providerFound.name} does not offer ${service}`,
-      );
-    }
+  appointment.clientId = user;
+  appointment.providerId = providerFound;
+  appointment.services = foundService;
+  appointment.date = date;
+  appointment.startHour = startTime;
+  appointment.notes = notes;
+  appointment.addressUrl = address;
 
-    this.validateProviderWorksThatDay(providerFound, date);
-    this.validateStartHourInWorkingRange(providerFound, startTime);
-    await this.validateNoStartOverlap(providerFound.id, date, startTime);
-
-    //CREACION DEL APPOINTMENT
-    const appointment = new Appointment();
-
-    appointment.clientId = user;
-    appointment.providerId = providerFound;
-    appointment.services = foundService;
-    appointment.date = date;
-    appointment.startHour = startTime;
-    appointment.notes = notes;
-    appointment.addressUrl = address;
-
-    const stringDate = this.formatDateDDMMYYYY(date);
-
-    await this.appointmentRepository.save(appointment);
-    await this.newAppointmentEmailProvider(
-      //    email:string,
-      providerFound.email,
-      // clientName:string,
-      user.name,
-      // providerName:string,
-      providerFound.name,
-      // serviceName:string,
-      foundService.name,
-      // date:string,
-      stringDate,
-      // time:string,
-      startTime,
-      // address:string
-      address,
-    );
-
-    return appointment;
+  const stringDate = this.formatDateDDMMYYYY(date);
+  
+  await this.appointmentRepository.save(appointment);
+  this.newAppointmentEmailProvider(
+  //    email:string,
+  providerFound.email,
+  // clientName:string,
+  user.name,
+  // providerName:string,
+  providerFound.name,
+  // serviceName:string,
+  foundService.name,
+  // date:string,
+  stringDate,
+  // time:string,
+  startTime,
+  // address:string
+  address
+  );
+  
+  return appointment;
   }
 
-  async findAllUserAppointments(authUser: any, filters: filterAppointmentDto) {
+
+
+
+
+  async findAllUserAppointments(authUser:any, filters:filterAppointmentDto) {
     //busco el usuario autenticado
-    const user = await this.userRepository.findOne({
-      where: { id: authUser.id },
-    });
-    if (!user) throw new BadRequestException('тЪая╕П User not found');
+    const user = await this.userRepository.findOne({where: {id: authUser.id}});
+    if (!user) throw new BadRequestException('⚠️ User not found');
 
     console.log(filters);
 
@@ -178,8 +189,9 @@ export class AppointmentsService {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.clientId', 'client')
       .leftJoinAndSelect('appointment.providerId', 'provider')
-      .leftJoinAndSelect('appointment.services', 'service');
-    // .leftJoinAndSelect('appointment.services.category', 'category');
+      .leftJoinAndSelect('appointment.services', 'service')
+      // .leftJoinAndSelect('appointment.services.category', 'category');
+
 
     //preparo la query para filtrar usando los filtros de busqueda
     if (filters.status) {
@@ -210,6 +222,7 @@ export class AppointmentsService {
 
     //el filtro por fecha
     if (filters.date) {
+
       query.andWhere('appointment.date = :date', {
         date: filters.date,
       });
@@ -218,83 +231,61 @@ export class AppointmentsService {
     query.orderBy('appointment.date', 'DESC');
 
     const appointments: Appointment[] = await query.getMany();
-    if (user.role === Role.PROVIDER) {
-      const providerAppointments = appointments.filter(
-        (appointment) => appointment.providerId.id === user.id,
-      );
-      const clientAppointments = appointments.filter(
-        (appointment) => appointment.clientId.id === user.id,
-      );
+    if(user.role === Role.PROVIDER){
+      const providerAppointments = appointments.filter(appointment => appointment.providerId.id === user.id);
+      const clientAppointments = appointments.filter(appointment => appointment.clientId.id === user.id);
 
       const totalAppointments = {
-        providerAppointments,
-        clientAppointments,
-      };
-      return totalAppointments;
-    } else if (user.role === Role.CLIENT) {
-      const providerAppointments = [];
-      const clientAppointments = appointments.filter(
-        (appointment) => appointment.clientId.id === user.id,
-      );
-
-      const totalAppointments = {
-        providerAppointments,
-        clientAppointments,
-      };
-      return totalAppointments;
+      providerAppointments,
+      clientAppointments
     }
+    return totalAppointments;
+
+    }
+    else if(user.role === Role.CLIENT){
+      const providerAppointments = [];
+      const clientAppointments = appointments.filter(appointment => appointment.clientId.id === user.id);
+
+      
+      const totalAppointments = {
+      providerAppointments,
+      clientAppointments
+    }
+    return totalAppointments;
+    }
+
+   
+  
   }
 
   async findOne(id: string, authUser) {
-    const user = await this.userRepository.findOne({
-      where: { id: authUser.id },
-    });
-    if (!user) throw new BadRequestException('тЪая╕П User not found');
+    const user = await this.userRepository.findOne({where: {id: authUser.id}});
+    if(!user) throw new BadRequestException('⚠️ User not found');
 
     const appointment = await this.appointmentRepository.findOne({
-      where: { id: id },
-      relations: ['clientId', 'providerId', 'services'],
-    });
-    if (!appointment)
-      throw new BadRequestException('тЪая╕П Appointment not found');
+      where: {id: id},
+      relations: ['clientId', 'providerId', 'services']});
+    if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    if (
-      appointment.clientId.id !== user.id &&
-      appointment.providerId.id !== user.id
-    )
-      throw new BadRequestException(
-        'тЪая╕П You are not the owner of this appointment',
-      );
+    if(appointment.clientId.id !== user.id && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
     return appointment;
   }
 
   //ruta exclusiva para el provider en la cita. ppara cargar el precio y el horario estimado de final de la visita luego de comunicarse con el cliente
-  async update(
-    id: string,
-    updateAppointmentDto: UpdateAppointmentDto,
-    authUser: any,
-  ) {
-    const user = await this.userRepository.findOne({
-      where: { id: authUser.id },
-    });
-    if (!user) throw new BadRequestException('тЪая╕П User not found');
+  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, authUser:any) {
 
-    const appointment = await this.appointmentRepository.findOne({
-      where: { id: id },
-      relations: ['providerId'],
-    });
-    if (!appointment)
-      throw new BadRequestException('тЪая╕П Appointment not found');
+    const user = await this.userRepository.findOne({where: {id: authUser.id}});
+    if (!user) throw new BadRequestException('⚠️ User not found');
 
-    if (appointment.providerId.id !== user.id)
-      throw new BadRequestException(
-        'тЪая╕П Only the provider can update this appointment',
-      );
+    const appointment = await this.appointmentRepository.findOne({where: {id: id}, relations: ['providerId']});
+    if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    if (updateAppointmentDto.endHour) {
+    if (appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ Only the provider can update this appointment');
+
+    if (updateAppointmentDto.endHour){
       appointment.endHour = updateAppointmentDto.endHour;
     }
-    if (updateAppointmentDto.price) {
+    if(updateAppointmentDto.price){
       appointment.price = updateAppointmentDto.price;
     }
 
@@ -302,67 +293,45 @@ export class AppointmentsService {
   }
 
   async updateStatus(id: string, status: AppointmentStatus, authUser: any) {
-    //traigo el appointment en cuestion y el usuario autenticado
-    const appointment = await this.appointmentRepository.findOne({
-      where: { id: id },
-      relations: ['clientId', 'providerId'],
-    });
-    if (!appointment)
-      throw new BadRequestException('тЪая╕П Appointment not found');
+    
+      //traigo el appointment en cuestion y el usuario autenticado
+    const appointment = await this.appointmentRepository.findOne({where: {id: id}, relations: ['clientId', 'providerId']});
+    if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    const user = await this.userRepository.findOne({
-      where: { id: authUser.id },
-    });
-    if (!user) throw new BadRequestException('тЪая╕П User not found');
+    const user = await this.userRepository.findOne({where: {id: authUser.id}});
+    if (!user) throw new BadRequestException('⚠️ User not found');
     console.log(user);
     console.log(appointment);
 
-    if (
-      appointment.clientId.id !== user.id &&
-      appointment.providerId.id !== user.id
-    )
-      throw new BadRequestException(
-        'тЪая╕П You are not the owner of this appointment',
-      );
+    if(appointment.clientId.id !== user.id && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+    
+    if(appointment.status === status) throw new BadRequestException('⚠️ The status is the same');
+    if(appointment.status === AppointmentStatus.CANCELLED) throw new BadRequestException('⚠️ The status is already cancelled');
 
-    if (appointment.status === status)
-      throw new BadRequestException('тЪая╕П The status is the same');
-    if (appointment.status === AppointmentStatus.CANCELLED)
-      throw new BadRequestException('тЪая╕П The status is already cancelled');
-
-    if (status === AppointmentStatus.PENDING && user !== appointment.providerId)
-      throw new BadRequestException(
-        'тЪая╕П only the provider can change the status to pending',
-      );
-
+    if(status === AppointmentStatus.PENDING && user !== appointment.providerId) throw new BadRequestException('⚠️ only the provider can change the status to pending');
+   
+    
     appointment.status = status;
     return this.appointmentRepository.save(appointment);
   }
 
-  async remove(id: string, authuser: any) {
+  async remove(id: string, authuser:any) {
+
     //traigo el appointment en cuestion y el usuario autenticado
-    const appointment = await this.appointmentRepository.findOne({
-      where: { id: id },
-      relations: ['clientId', 'providerId'],
-    });
+    const appointment = await this.appointmentRepository.findOne({where: {id: id}, relations: ['clientId', 'providerId']});
 
-    const user = await this.userRepository.findOne({
-      where: { id: authuser.id },
-    });
-    if (!user) throw new BadRequestException('тЪая╕П User not found');
-    if (!appointment)
-      throw new BadRequestException('тЪая╕П Appointment not found');
+    const user = await this.userRepository.findOne({where: {id: authuser.id}});
+    if (!user) throw new BadRequestException('⚠️ User not found');
+    if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    if (user.role === 'client' && appointment.clientId.id !== user.id)
-      throw new BadRequestException(
-        'тЪая╕П You are not the owner of this appointment',
-      );
-    if (user.role === 'provider' && appointment.providerId.id !== user.id)
-      throw new BadRequestException(
-        'тЪая╕П You are not the owner of this appointment',
-      );
+    if(user.role === 'client' && appointment.clientId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+    if(user.role === 'provider' && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
 
-    return this.appointmentRepository.update(id, { isActive: false });
+  
+
+    return this.appointmentRepository.update(id, {isActive: false});
+  
+
   }
 
   async validatePendingAppointments() {
@@ -407,7 +376,7 @@ export class AppointmentsService {
       });
 
       if (appointments.length > 0) {
-        await this.upcommingAppointmentProvider(
+        this.upcommingAppointmentProvider(
           provider.name,
           provider.email,
           appointments,
@@ -433,7 +402,7 @@ export class AppointmentsService {
       });
 
       if (appointments.length > 0) {
-        await this.upcommingAppointmentClient(
+        this.upcommingAppointmentClient(
           client.name,
           client.email,
           appointments,
@@ -453,8 +422,11 @@ export class AppointmentsService {
     paseDate.setHours(12, 0, 0, 0);
 
     let day = paseDate
-      .toLocaleDateString('en-US', { weekday: 'long' })
-      .toUpperCase();
+    .toLocaleDateString('es-ES', { weekday: 'long' })
+    .toUpperCase();
+ 
+    
+  day = day.charAt(0).concat(day.slice(1).toLowerCase());
 
     day = day.charAt(0).concat(day.slice(1).toLowerCase());
 
@@ -467,6 +439,7 @@ export class AppointmentsService {
     startHour: string,
   ) {
     const start = this.timeToMinutes(startHour);
+    console.log(provider.hours)
 
     const isInside = provider.hours?.some((range) => {
       const [from, to] = range.split('-');
@@ -533,18 +506,18 @@ export class AppointmentsService {
 
     return { start, end };
   }
-  //---------Nodemailer helper (creacion de un appointment)-------
-  private async newAppointmentEmailProvider(
-    email: string,
-    clientName: string,
-    providerName: string,
-    serviceName: string,
-    date: string,
-    time: string,
-    address: string,
-  ) {
-    const subject = 'Tienes una nueva solicitud de turno en CleenGoЁЯз╝ ';
-    const html = `
+  ///---------Nodemailer helper (creacion de un appointment)-------
+private async newAppointmentEmailProvider (
+  email:string,
+  clientName:string,
+  providerName:string,
+  serviceName:string,
+  date:string,
+  time:string,
+  address:string
+){ 
+  const subject = 'Tienes una nueva solicitud de turno en CleenGo🧼 ';
+  const html = `
   <!DOCTYPE html>
   <html lang="es">
     <head>
@@ -561,7 +534,7 @@ export class AppointmentsService {
               <!-- Header -->
               <tr>
                 <td style="background: #27ae60; padding: 20px; color: #ffffff;">
-                  <h1 style="margin: 0; font-size: 22px;">ЁЯУв Nuevo servicio asignado</h1>
+                  <h1 style="margin: 0; font-size: 22px;">📢 Nuevo servicio asignado</h1>
                 </td>
               </tr>
 
@@ -574,18 +547,18 @@ export class AppointmentsService {
 
                   <p style="font-size: 15px;">
                     Se te ha asignado un <strong>nuevo servicio</strong>.  
-                    A continuaci├│n encontrar├бs los detalles:
+                    A continuación encontrarás los detalles:
                   </p>
 
                   <!-- Details -->
                   <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fb; border-radius: 6px; margin: 20px 0;">
                     <tr>
                       <td style="padding: 16px;">
-                        <p style="margin: 4px 0;"><strong>ЁЯз╛ Servicio:</strong> ${serviceName}</p>
-                        <p style="margin: 4px 0;"><strong>ЁЯСд Cliente:</strong> ${clientName}</p>
-                        <p style="margin: 4px 0;"><strong>ЁЯУЕ Fecha:</strong> ${date}</p>
-                        <p style="margin: 4px 0;"><strong>тП░ Horario:</strong> ${time}</p>
-                        <p style="margin: 4px 0;"><strong>ЁЯУН Direcci├│n:</strong> ${address}</p>
+                        <p style="margin: 4px 0;"><strong>🧾 Servicio:</strong> ${serviceName}</p>
+                        <p style="margin: 4px 0;"><strong>👤 Cliente:</strong> ${clientName}</p>
+                        <p style="margin: 4px 0;"><strong>📅 Fecha:</strong> ${date}</p>
+                        <p style="margin: 4px 0;"><strong>⏰ Horario:</strong> ${time}</p>
+                        <p style="margin: 4px 0;"><strong>📍 Dirección:</strong> ${address}</p>
                       </td>
                     </tr>
                   </table>
@@ -595,12 +568,12 @@ export class AppointmentsService {
                   </p>
 
                   <p style="font-size: 15px;">
-                    Si por alg├║n motivo no pod├йs realizar el servicio, comunicate lo antes posible a trav├йs de la plataforma.
+                    Si por algún motivo no podés realizar el servicio, comunicate lo antes posible a través de la plataforma.
                   </p>
 
                   <p style="margin-top: 24px;">
                     Gracias por tu compromiso.<br />
-                    <strong>Equipo de Coordinaci├│n</strong>
+                    <strong>Equipo de Coordinación</strong>
                   </p>
                 </td>
               </tr>
@@ -608,7 +581,7 @@ export class AppointmentsService {
               <!-- Footer -->
               <tr>
                 <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
-                  Este es un correo autom├бtico. Por favor, no respondas a este mensaje.
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
                 </td>
               </tr>
 
@@ -619,35 +592,36 @@ export class AppointmentsService {
     </body>
   </html>
   `;
-    const text = `┬бHola, ${providerName}!
+  const text = `¡Hola, ${providerName}!
 Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
 
     try {
-      await this.nodemailerService.sendMail({
-        to: email,
+      this.nodemailerService.sendMail({
+        to:email,
         subject,
         html,
         text,
       });
     } catch (error: any) {
       this.logger.error(
-        `тЭМ Error enviando email nueva cita a ${email}: ${error.message}`,
+        `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
       );
     }
-  }
-  //---------Nodemailer helper (mail recordatorio de un appointment pendiente)-------
-  private async pendingAppointmentEmail(
-    email: string,
-    providerName: string,
-    pendingCount: number,
-  ) {
-    const html = `
+
+}
+//---------Nodemailer helper (mail recordatorio de un appointment pendiente)-------
+private async pendingAppointmentEmail(
+  email:string, 
+  providerName:string, 
+  pendingCount: number,
+  ){
+  const html = `
     <!DOCTYPE html>
   <html lang="es">
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Acci├│n requerida тАУ Servicios pendientes</title>
+      <title>Acción requerida – Servicios pendientes</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: Arial, sans-serif;">
       <table width="100%" cellpadding="0" cellspacing="0">
@@ -659,7 +633,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
               <tr>
                 <td style="background: #eb5757; padding: 20px; color: #ffffff;">
                   <h1 style="margin: 0; font-size: 22px;">
-                    тЪая╕П Acci├│n requerida тАУ Confirm├б tus servicios
+                    ⚠️ Acción requerida – Confirmá tus servicios
                   </h1>
                 </td>
               </tr>
@@ -672,23 +646,23 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                   </p>
 
                   <p style="font-size: 15px;">
-                    Ten├йs <strong>${pendingCount}</strong> servicio${pendingCount > 1 ? 's' : ''} 
-                    pendiente${pendingCount > 1 ? 's' : ''} de <strong>confirmaci├│n</strong>.
+                    Tenés <strong>${pendingCount}</strong> servicio${pendingCount > 1 ? 's' : ''} 
+                    pendiente${pendingCount > 1 ? 's' : ''} de <strong>confirmación</strong>.
                   </p>
 
                   <p style="font-size: 15px;">
-                    Por favor, confirm├б o rechaz├б cada servicio para asegurar una correcta coordinaci├│n.
+                    Por favor, confirmá o rechazá cada servicio para asegurar una correcta coordinación.
                   </p>
 
                  
 
                   <p style="font-size: 14px; color: #555;">
-                    тЪая╕П Si no se confirma el servicio con antelaci├│n, podr├нa ser reasignado.
+                    ⚠️ Si no se confirma el servicio con antelación, podría ser reasignado.
                   </p>
 
                   <p style="margin-top: 24px;">
-                    Gracias por tu r├бpida respuesta.<br />
-                    <strong>Equipo de Coordinaci├│n</strong>
+                    Gracias por tu rápida respuesta.<br />
+                    <strong>Equipo de Coordinación</strong>
                   </p>
                 </td>
               </tr>
@@ -696,7 +670,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
               <!-- Footer -->
               <tr>
                 <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
-                  Este es un correo autom├бtico. Por favor, no respondas a este mensaje.
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
                 </td>
               </tr>
 
@@ -708,29 +682,25 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
   </html>
   `;
 
-    const text = `┬бHola, ${providerName}! Tienes ${pendingCount} servicio${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} de confirmaci├│n.`;
+  const text = `¡Hola, ${providerName}! Tienes ${pendingCount} servicio${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} de confirmación.`;
 
     try {
-      await this.nodemailerService.sendMail({
-        to: email,
-        subject: 'Acci├│n requerida тАУ Servicios pendientes',
+      this.nodemailerService.sendMail({
+        to:email,
+        subject:'Acción requerida – Servicios pendientes',
         html,
         text,
       });
     } catch (error: any) {
       this.logger.error(
-        `тЭМ Error enviando email nueva cita a ${email}: ${error.message}`,
+        `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
       );
     }
-  }
+}
 
-  private async upcommingAppointmentProvider(
-    providerName: string,
-    providerEmail: string,
-    upcommingAppointments: Appointment[],
-  ) {
-    const subject = `тП░ Recordatorio: ten├йs un servicio ma├▒ana`;
-    const html = `
+private async upcommingAppointmentProvider (providerName:string, providerEmail:string, upcommingAppointments:Appointment[]){
+  const subject = `⏰ Recordatorio: tenés un servicio mañana`;
+  const html = `
   <!DOCTYPE html>
   <html lang="es">
     <head>
@@ -748,7 +718,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
               <tr>
                 <td style="background: #27ae60; padding: 20px; color: #ffffff;">
                   <h1 style="margin: 0; font-size: 22px;">
-                    тП░ Recordatorio de servicio
+                    ⏰ Recordatorio de servicio
                   </h1>
                 </td>
               </tr>
@@ -761,7 +731,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                   </p>
 
                   <p style="font-size: 15px;">
-                    Te recordamos que <strong>ma├▒ana</strong> tienes asignados los siguientes servicios:
+                    Te recordamos que <strong>mañana</strong> tienes asignados los siguientes servicios:
                   </p>
 
                   <!-- Appointments list -->
@@ -771,10 +741,10 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                         (a) => `
                         <tr>
                           <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
-                            <p style="margin: 2px 0;"><strong>ЁЯз╛ ${a.services}</strong></p>
-                            <p style="margin: 2px 0;">ЁЯСд Cliente: ${a.clientId.name}</p>
-                            <p style="margin: 2px 0;">тП░ ${a.startHour}</p>
-                            <p style="margin: 2px 0;">ЁЯУН ${a.addressUrl}</p>
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;">👤 Cliente: ${a.clientId.name}</p>
+                            <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
+                            <p style="margin: 2px 0;">📍 ${a.addressUrl}</p>
                           </td>
                         </tr>
                       `,
@@ -788,7 +758,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
 
                   <p style="margin-top: 24px;">
                     Gracias por tu compromiso.<br />
-                    <strong>Equipo de Coordinaci├│n</strong>
+                    <strong>Equipo de Coordinación</strong>
                   </p>
                 </td>
               </tr>
@@ -796,7 +766,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
               <!-- Footer -->
               <tr>
                 <td style="background: #f1f3f5; padding: 16px; text-align: center; font-size: 12px; color: #777777;">
-                  Este es un correo autom├бtico. Por favor, no respondas a este mensaje.
+                  Este es un correo automático. Por favor, no respondas a este mensaje.
                 </td>
               </tr>
 
@@ -807,27 +777,21 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
     </body>
   </html>
   `;
-    const text = `Hola ${providerName}, te recordamos que manana tenes un servicio. Por favor, asegurate de presentarte en la fecha y horario indicados. Gracias por tu compromiso.`;
-    try {
-      await this.nodemailerService.sendMail({
-        to: providerEmail,
-        subject,
-        html,
-        text,
-      });
-    } catch (error: any) {
-      this.logger.error(
-        `тЭМ Error enviando email recordatorio a ${providerEmail}: ${error.message}`,
-      );
-    }
+  const text = `Hola ${providerName}, te recordamos que manana tenes un servicio. Por favor, asegurate de presentarte en la fecha y horario indicados. Gracias por tu compromiso.`
+  try{
+    this.nodemailerService.sendMail({
+      to:providerEmail,
+      subject,
+      html,
+      text
+    });
+  } catch(error:any){
+    this.logger.error(`❌ Error enviando email recordatorio a ${providerEmail}: ${error.message}`);
   }
-  private async upcommingAppointmentClient(
-    clientName: string,
-    clientEmail: string,
-    upcommingAppointments: Appointment[],
-  ) {
-    const subject = `тП░ Recordatorio: tu servicio es ma├▒ana`;
-    const html = `<!DOCTYPE html>
+}
+private async upcommingAppointmentClient ( clientName:string, clientEmail:string, upcommingAppointments:Appointment[]){
+  const subject = `⏰ Recordatorio: tu servicio es mañana`
+  const html = `<!DOCTYPE html>
   <html lang="es">
     <head>
       <meta charset="UTF-8" />
@@ -844,7 +808,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
               <tr>
                 <td style="background: #2f80ed; padding: 20px; color: #ffffff;">
                   <h1 style="margin: 0; font-size: 22px;">
-                    тП░ Recordatorio de servicio
+                    ⏰ Recordatorio de servicio
                   </h1>
                 </td>
               </tr>
@@ -857,7 +821,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                   </p>
 
                   <p style="font-size: 15px;">
-                    Te recordamos que <strong>ma├▒ana</strong> tienes programados los siguientes servicios:
+                    Te recordamos que <strong>mañana</strong> tienes programados los siguientes servicios:
                   </p>
 
                   <!-- Appointments list -->
@@ -867,9 +831,9 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                         (a) => `
                         <tr>
                           <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
-                            <p style="margin: 2px 0;"><strong>ЁЯз╛ ${a.services}</strong></p>
-                            <p style="margin: 2px 0;">ЁЯСд Proveedor: ${a.providerId.name}</p>
-                            <p style="margin: 2px 0;">тП░ ${a.startHour}</p>
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;">👤 Proveedor: ${a.providerId.name}</p>
+                            <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
                           </td>
                         </tr>
                       `,
@@ -878,11 +842,11 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                   </table>
 
                   <p style="font-size: 15px;">
-                    Si necesitas modificar o cancelar algún servicio, podés hacerlo desde la plataforma.
+                    Si necesitás modificar o cancelar algún servicio, podés hacerlo desde la plataforma.
                   </p>
 
                   <p style="margin-top: 24px;">
-                    ┬бGracias por confiar en nosotros!<br />
+                    ¡Gracias por confiar en nosotros!<br />
                     <strong>Equipo de Soporte</strong>
                   </p>
                 </td>
@@ -903,18 +867,19 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
   </html>
   `;
 
-    const text = `Hola ${clientName},
-Te recordamos que mañana tienes programado${upcommingAppointments.length > 1 ? 's' : ''} servicio${upcommingAppointments.length > 1 ? 's' : ''}`;
+  const text = `Hola ${clientName},
+Te recordamos que mañana tienes programado${upcommingAppointments.length > 1 ? 's' : ''} servicio${upcommingAppointments.length > 1 ? 's' : ''}`
 
-    try {
-      await this.nodemailerService.sendMail({
-        to: clientEmail,
-        subject: subject,
-        html: html,
-        text: text,
-      });
-    } catch (error) {
-      this.logger.error(`Error al enviar el correo a ${clientEmail}:`, error);
-    }
-  }
+
+try{
+  this.nodemailerService.sendMail({
+    to: clientEmail,
+    subject: subject,
+    html: html,
+    text: text,
+  });
+  } catch (error) {
+  this.logger.error(`Error al enviar el correo a ${clientEmail}:`, error);
+}
+}
 }

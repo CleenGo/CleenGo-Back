@@ -34,6 +34,7 @@ import {
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
+
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createAppointmentDto: CreateAppointmentDto, @Req() req: any) {
