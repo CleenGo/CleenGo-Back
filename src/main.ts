@@ -7,12 +7,18 @@ import express, { json, raw } from 'express';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule,{
-    bodyParser: false, // 🔥 CLAVE
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true, // ← Importante para webhooks
   });
   app.use('/subscription/webhook', express.raw({ type: 'application/json' }));
 
-  app.use(json());
+  app.use(
+    json({
+      verify: (req: any, res, buf) => {
+        req.rawBody = buf; // Guardar raw body para webhook
+      },
+    }),
+  );
   app.enableCors({
     origin: process.env.FRONT_URL,
     credentials: true,

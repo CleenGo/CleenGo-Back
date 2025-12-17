@@ -1,17 +1,17 @@
 import {
   Controller,
-  Get,
   Post,
-  Body,
-  Req,
-  Headers,
-  BadRequestException,
+  Get,
   Query,
-  NotFoundException,
+  Req,
   Res,
+  Headers,
+  Body,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
-import Stripe from 'stripe';
 import { SuscriptionService } from './suscription.service';
+import Stripe from 'stripe';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 
 @Controller('subscription')
@@ -22,17 +22,10 @@ export class SuscriptionController {
 
   constructor(private readonly subscriptionService: SuscriptionService) {}
 
-  // ================================
-  // 1️⃣ CREAR CHECKOUT SESSION (Swagger / Front)
-  // ================================
   @Post('create-checkout-session')
   async createCheckout(@Body() body: CreateCheckoutDto) {
     const { providerId } = body;
-
-    if (!providerId) {
-      throw new BadRequestException('providerId is required');
-    }
-
+    if (!providerId) throw new BadRequestException('providerId is required');
     return this.subscriptionService.createCheckoutSession(providerId);
   }
 
