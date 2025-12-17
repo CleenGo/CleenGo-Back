@@ -1,4 +1,4 @@
-// src/nodemailer/nodemailer.service.ts
+//CleenGo-Back/src/nodemailer/nodemailer.service.ts
 import {
   Injectable,
   InternalServerErrorException,

@@ -7,7 +7,9 @@ import express, { json, raw } from 'express';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule,{
+    bodyParser: false, // 🔥 CLAVE
+  });
   app.use('/subscription/webhook', express.raw({ type: 'application/json' }));
 
 

@@ -1,3 +1,4 @@
+//CleenGo-Back/src/auth/auth.service.ts
 import {
   BadRequestException,
   Inject,
@@ -422,12 +423,14 @@ export class AuthService {
 Gracias por registrarte como ${roleLabel} en CleenGo.`;
 
     try {
-      this.nodemailerService.sendMail({
+      await this.nodemailerService.sendMail({
         to,
         subject,
         html,
         text,
       });
+
+      this.logger.log(`✅ Email de bienvenida enviado a ${to}`);
     } catch (error: any) {
       this.logger.error(
         `❌ Error enviando email de bienvenida a ${to}: ${error.message}`,
