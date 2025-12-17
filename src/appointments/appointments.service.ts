@@ -75,28 +75,17 @@ export class AppointmentsService {
       providerId: appointment.providerId?.id,
     };
   }
-    async create(createAppointmentDto: CreateAppointmentDto, authUser:any) {
-
+  async create(createAppointmentDto: CreateAppointmentDto, authUser: any) {
     const user = await this.userRepository.findOne({
       where: { id: authUser.id },
     });
 
     if (!user) throw new NotFoundException('user not found');
 
-    
-
-    const { service, date, startTime,  notes, providerEmail, address } =
+    const { service, date, startTime, notes, providerEmail, address } =
       createAppointmentDto;
 
-    
-    if (
-      !service ||
-      !date ||
-      !startTime ||
-      !notes ||
-      !providerEmail||
-      !address
-    )
+    if (!service || !date || !startTime || !notes || !providerEmail || !address)
       throw new BadRequestException('all required fields must be complete');
 
     //verifico que la fecha de emision sea posterior a la actual
@@ -106,80 +95,84 @@ export class AppointmentsService {
         appointmentDateType.getTimezoneOffset(),
     );
     const today = new Date();
-    
+
     if (appointmentDateType <= today)
       throw new BadRequestException(
-    'the appointment date must be later than the current date',
-  );
+        'the appointment date must be later than the current date',
+      );
 
-  //busco el servicio solicitado en la appointment y el rpoveedor
-  
-  const foundService = await this.serviceRepository.findOne({where: {name: service}, relations: ['category']});
-  const providerFound = await this.providerRepository.findOne({
-    where: { email: providerEmail, role: Role.PROVIDER },
-    relations: ['services'],
-  });
+    //busco el servicio solicitado en la appointment y el rpoveedor
 
-  if (!foundService) throw new NotFoundException('service not found');
+    const foundService = await this.serviceRepository.findOne({
+      where: { name: service },
+      relations: ['category'],
+    });
+    const providerFound = await this.providerRepository.findOne({
+      where: { email: providerEmail, role: Role.PROVIDER },
+      relations: ['services'],
+    });
 
-  if (!providerFound) throw new NotFoundException('Provider not found');
- 
+    if (!foundService) throw new NotFoundException('service not found');
 
-  const hasService = providerFound.services.some(
-  (providerService) => providerService.id === foundService.id,
-);
+    if (!providerFound) throw new NotFoundException('Provider not found');
 
-if (!hasService) {
-  throw new BadRequestException(
-    `the provider ${providerFound.name} does not offer ${service}`,
-  );
-}
-  
-  this.validateProviderWorksThatDay(providerFound, date);
-  this.validateStartHourInWorkingRange(providerFound, startTime);
-  await this.validateNoStartOverlap(providerFound.id, appointmentDateType, startTime);
-  
-  //CREACION DEL APPOINTMENT
-  const appointment = new Appointment();
+    const hasService = providerFound.services.some(
+      (providerService) => providerService.id === foundService.id,
+    );
 
-  appointment.clientId = user;
-  appointment.providerId = providerFound;
-  appointment.services = foundService;
-  appointment.date = date;
-  appointment.startHour = startTime;
-  appointment.notes = notes;
-  appointment.addressUrl = address;
+    if (!hasService) {
+      throw new BadRequestException(
+        `the provider ${providerFound.name} does not offer ${service}`,
+      );
+    }
 
-  const stringDate = this.formatDateDDMMYYYY(date);
-  
-  await this.appointmentRepository.save(appointment);
-  this.newAppointmentEmailProvider(
-  //    email:string,
-  providerFound.email,
-  // clientName:string,
-  user.name,
-  // providerName:string,
-  providerFound.name,
-  // serviceName:string,
-  foundService.name,
-  // date:string,
-  stringDate,
-  // time:string,
-  startTime,
-  // address:string
-  address
-  );
-  
-  return appointment;
+    this.validateProviderWorksThatDay(providerFound, date);
+    this.validateStartHourInWorkingRange(providerFound, startTime);
+    await this.validateNoStartOverlap(
+      providerFound.id,
+      appointmentDateType,
+      startTime,
+    );
+
+    //CREACION DEL APPOINTMENT
+    const appointment = new Appointment();
+
+    appointment.clientId = user;
+    appointment.providerId = providerFound;
+    appointment.services = foundService;
+    appointment.date = date;
+    appointment.startHour = startTime;
+    appointment.notes = notes;
+    appointment.addressUrl = address;
+
+    const stringDate = this.formatDateDDMMYYYY(date);
+
+    await this.appointmentRepository.save(appointment);
+    this.newAppointmentEmailProvider(
+      //    email:string,
+      providerFound.email,
+      // clientName:string,
+      user.name,
+      // providerName:string,
+      providerFound.name,
+      // serviceName:string,
+      foundService.name,
+      // date:string,
+      stringDate,
+      // time:string,
+      startTime,
+      // address:string
+      address,
+    );
+
+    return appointment;
   }
 
-
-
-
-
-  async findAllUserAppointments(authUser:any, filters:filterAppointmentDto) {
+  async findAllUserAppointments(authUser: any, filters: filterAppointmentDto) {
     //busco el usuario autenticado
-    const user = await this.userRepository.findOne({where: {id: authUser.id}});
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.id },
+    });
     if (!user) throw new BadRequestException('⚠️ User not found');
 
     console.log(filters);
@@ -189,9 +182,8 @@ if (!hasService) {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.clientId', 'client')
       .leftJoinAndSelect('appointment.providerId', 'provider')
-      .leftJoinAndSelect('appointment.services', 'service')
-      // .leftJoinAndSelect('appointment.services.category', 'category');
-
+      .leftJoinAndSelect('appointment.services', 'service');
+    // .leftJoinAndSelect('appointment.services.category', 'category');
 
     //preparo la query para filtrar usando los filtros de busqueda
     if (filters.status) {
@@ -222,7 +214,6 @@ if (!hasService) {
 
     //el filtro por fecha
     if (filters.date) {
-
       query.andWhere('appointment.date = :date', {
         date: filters.date,
       });
@@ -231,35 +222,34 @@ if (!hasService) {
     query.orderBy('appointment.date', 'DESC');
 
     const appointments: Appointment[] = await query.getMany();
-    if(user.role === Role.PROVIDER){
-      const providerAppointments = appointments.filter(appointment => appointment.providerId.id === user.id);
-      const clientAppointments = appointments.filter(appointment => appointment.clientId.id === user.id);
+    if (user.role === Role.PROVIDER) {
+      const providerAppointments = appointments.filter(
+        (appointment) => appointment.providerId.id === user.id,
+      );
+      const clientAppointments = appointments.filter(
+        (appointment) => appointment.clientId.id === user.id,
+      );
 
       const totalAppointments = {
-      providerAppointments,
-      clientAppointments
-    }
-    return totalAppointments;
-
-    }
-    else if(user.role === Role.CLIENT){
+        providerAppointments,
+        clientAppointments,
+      };
+      return totalAppointments;
+    } else if (user.role === Role.CLIENT) {
       const providerAppointments = [];
-      const clientAppointments = appointments.filter(appointment => appointment.clientId.id === user.id);
+      const clientAppointments = appointments.filter(
+        (appointment) => appointment.clientId.id === user.id,
+      );
 
-      
       const totalAppointments = {
-      providerAppointments,
-      clientAppointments
+        providerAppointments,
+        clientAppointments,
+      };
+      return totalAppointments;
     }
-    return totalAppointments;
-    }
-
-   
-  
   }
 
-    async adminFindAllAppointments( filters:filterAppointmentDto) {
-    
+  async adminFindAllAppointments(filters: filterAppointmentDto) {
     console.log(filters);
 
     //traigo todas las appointments
@@ -267,9 +257,8 @@ if (!hasService) {
       .createQueryBuilder('appointment')
       .leftJoinAndSelect('appointment.clientId', 'client')
       .leftJoinAndSelect('appointment.providerId', 'provider')
-      .leftJoinAndSelect('appointment.services', 'service')
-      // .leftJoinAndSelect('appointment.services.category', 'category');
-
+      .leftJoinAndSelect('appointment.services', 'service');
+    // .leftJoinAndSelect('appointment.services.category', 'category');
 
     //preparo la query para filtrar usando los filtros de busqueda
     if (filters.status) {
@@ -300,7 +289,6 @@ if (!hasService) {
 
     //el filtro por fecha
     if (filters.date) {
-
       query.andWhere('appointment.date = :date', {
         date: filters.date,
       });
@@ -308,42 +296,57 @@ if (!hasService) {
 
     const totalAppointments = query.orderBy('appointment.date', 'DESC');
 
-  
     return totalAppointments;
-    }
-
-   
-  
-  
+  }
 
   async findOne(id: string, authUser) {
-    const user = await this.userRepository.findOne({where: {id: authUser.id}});
-    if(!user) throw new BadRequestException('⚠️ User not found');
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.id },
+    });
+    if (!user) throw new BadRequestException('⚠️ User not found');
 
     const appointment = await this.appointmentRepository.findOne({
-      where: {id: id},
-      relations: ['clientId', 'providerId', 'services']});
+      where: { id: id },
+      relations: ['clientId', 'providerId', 'services'],
+    });
     if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    if(appointment.clientId.id !== user.id && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+    if (
+      appointment.clientId.id !== user.id &&
+      appointment.providerId.id !== user.id
+    )
+      throw new BadRequestException(
+        '⚠️ You are not the owner of this appointment',
+      );
     return appointment;
   }
 
   //ruta exclusiva para el provider en la cita. ppara cargar el precio y el horario estimado de final de la visita luego de comunicarse con el cliente
-  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, authUser:any) {
-
-    const user = await this.userRepository.findOne({where: {id: authUser.id}});
+  async update(
+    id: string,
+    updateAppointmentDto: UpdateAppointmentDto,
+    authUser: any,
+  ) {
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.id },
+    });
     if (!user) throw new BadRequestException('⚠️ User not found');
 
-    const appointment = await this.appointmentRepository.findOne({where: {id: id}, relations: ['providerId']});
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id: id },
+      relations: ['providerId'],
+    });
     if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    if (appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ Only the provider can update this appointment');
+    if (appointment.providerId.id !== user.id)
+      throw new BadRequestException(
+        '⚠️ Only the provider can update this appointment',
+      );
 
-    if (updateAppointmentDto.endHour){
+    if (updateAppointmentDto.endHour) {
       appointment.endHour = updateAppointmentDto.endHour;
     }
-    if(updateAppointmentDto.price){
+    if (updateAppointmentDto.price) {
       appointment.price = updateAppointmentDto.price;
     }
 
@@ -351,44 +354,63 @@ if (!hasService) {
   }
 
   async updateStatus(id: string, status: AppointmentStatus, authUser: any) {
-    
-      //traigo el appointment en cuestion y el usuario autenticado
-    const appointment = await this.appointmentRepository.findOne({where: {id: id}, relations: ['clientId', 'providerId']});
+    //traigo el appointment en cuestion y el usuario autenticado
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id: id },
+      relations: ['clientId', 'providerId'],
+    });
     if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    const user = await this.userRepository.findOne({where: {id: authUser.id}});
+    const user = await this.userRepository.findOne({
+      where: { id: authUser.id },
+    });
     if (!user) throw new BadRequestException('⚠️ User not found');
-    
 
-    if(appointment.clientId.id !== user.id && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
-    
-    if(appointment.status === status) throw new BadRequestException('⚠️ The status is the same');
-    if(appointment.status === AppointmentStatus.CANCELLED) throw new BadRequestException('⚠️ The status is already cancelled');
+    if (
+      appointment.clientId.id !== user.id &&
+      appointment.providerId.id !== user.id
+    )
+      throw new BadRequestException(
+        '⚠️ You are not the owner of this appointment',
+      );
 
-    if(status === AppointmentStatus.PENDING && user !== appointment.providerId) throw new BadRequestException('⚠️ only the provider can change the status to pending');
-   
-    
+    if (appointment.status === status)
+      throw new BadRequestException('⚠️ The status is the same');
+    if (appointment.status === AppointmentStatus.CANCELLED)
+      throw new BadRequestException('⚠️ The status is already cancelled');
+
+    if (status === AppointmentStatus.PENDING && user !== appointment.providerId)
+      throw new BadRequestException(
+        '⚠️ only the provider can change the status to pending',
+      );
+
     appointment.status = status;
     return this.appointmentRepository.save(appointment);
   }
 
-  async remove(id: string, authuser:any) {
-
+  async remove(id: string, authuser: any) {
     //traigo el appointment en cuestion y el usuario autenticado
-    const appointment = await this.appointmentRepository.findOne({where: {id: id}, relations: ['clientId', 'providerId']});
+    const appointment = await this.appointmentRepository.findOne({
+      where: { id: id },
+      relations: ['clientId', 'providerId'],
+    });
 
-    const user = await this.userRepository.findOne({where: {id: authuser.id}});
+    const user = await this.userRepository.findOne({
+      where: { id: authuser.id },
+    });
     if (!user) throw new BadRequestException('⚠️ User not found');
     if (!appointment) throw new BadRequestException('⚠️ Appointment not found');
 
-    if(user.role === 'client' && appointment.clientId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
-    if(user.role === 'provider' && appointment.providerId.id !== user.id) throw new BadRequestException('⚠️ You are not the owner of this appointment');
+    if (user.role === 'client' && appointment.clientId.id !== user.id)
+      throw new BadRequestException(
+        '⚠️ You are not the owner of this appointment',
+      );
+    if (user.role === 'provider' && appointment.providerId.id !== user.id)
+      throw new BadRequestException(
+        '⚠️ You are not the owner of this appointment',
+      );
 
-  
-
-    return this.appointmentRepository.update(id, {isActive: false});
-  
-
+    return this.appointmentRepository.update(id, { isActive: false });
   }
 
   async validatePendingAppointments() {
@@ -474,16 +496,18 @@ if (!hasService) {
     provider: Provider,
     date: string | Date,
   ) {
+    console.log('date', date);
     const paseDate = new Date(date);
-    // Forzamos el horario al mediod├нa
-    paseDate.setHours(12, 0, 0, 0);
+    console.log('paseDate', paseDate);
 
     let day = paseDate
-    .toLocaleDateString('es-ES', { weekday: 'long' })
-    .toUpperCase();
- 
-    
-  day = day.charAt(0).concat(day.slice(1).toLowerCase());
+      .toLocaleDateString('es-ES', {
+        weekday: 'long',
+        timeZone: 'UTC', // 🔥 CLAVE
+      })
+      .toUpperCase();
+
+    day = day.charAt(0).concat(day.slice(1).toLowerCase());
 
     day = day.charAt(0).concat(day.slice(1).toLowerCase());
 
@@ -492,77 +516,71 @@ if (!hasService) {
     }
   }
   private validateStartHourInWorkingRange(
-  provider: Provider,
-  startHour: string,
-) {
-  const start = this.timeToMinutes(startHour);
+    provider: Provider,
+    startHour: string,
+  ) {
+    const start = this.timeToMinutes(startHour);
 
-  if (start === null) {
-    throw new BadRequestException('Invalid start hour format');
+    if (start === null) {
+      throw new BadRequestException('Invalid start hour format');
+    }
+
+    const isInside = provider.hours?.some((range) => {
+      const [from, to] = range.split('-');
+
+      const fromMin = this.timeToMinutes(from);
+      const toMin = this.timeToMinutes(to);
+
+      if (fromMin === null || toMin === null) return false;
+
+      return start >= fromMin && start <= toMin;
+    });
+
+    if (!isInside) {
+      throw new BadRequestException(`Provider is not working at ${startHour}`);
+    }
   }
-
-  const isInside = provider.hours?.some((range) => {
-    const [from, to] = range.split('-');
-
-    const fromMin = this.timeToMinutes(from);
-    const toMin = this.timeToMinutes(to);
-
-    if (fromMin === null || toMin === null) return false;
-
-    return start >= fromMin && start <= toMin;
-  });
-
-  if (!isInside) {
-    throw new BadRequestException(
-      `Provider is not working at ${startHour}`,
-    );
-  }
-}
   private async validateNoStartOverlap(
     providerId: string,
     date: Date,
     startHour: string,
   ) {
     date.setHours(0, 0, 0, 0);
-    const existingAppointments = await this.appointmentRepository.find({where:{
-      providerId: { id: providerId },
-      date: date,
-      isActive: true
-    }
+    const existingAppointments = await this.appointmentRepository.find({
+      where: {
+        providerId: { id: providerId },
+        date: date,
+        isActive: true,
+      },
     });
 
-  for (const a of existingAppointments) {
-  if (!a.startHour && !a.endHour) continue;
+    for (const a of existingAppointments) {
+      if (!a.startHour && !a.endHour) continue;
 
-  const appointmentStart = this.timeToMinutes(a.startHour);
-  const appointmentEnd = this.timeToMinutes(a.endHour);
-  const newStart = this.timeToMinutes(startHour);
+      const appointmentStart = this.timeToMinutes(a.startHour);
+      const appointmentEnd = this.timeToMinutes(a.endHour);
+      const newStart = this.timeToMinutes(startHour);
 
-  if (
-    (appointmentStart !== null &&
-    appointmentEnd !== null &&
-    newStart !== null &&
-    newStart >= appointmentStart &&
-    newStart < appointmentEnd)|| (a.startHour === startHour)
-  ) {
-    throw new BadRequestException(
-      `Provider already has an appointment at ${startHour}`,
-    );
-  }
-}
-
-
-
-  
-
-   
+      if (
+        (appointmentStart !== null &&
+          appointmentEnd !== null &&
+          newStart !== null &&
+          newStart >= appointmentStart &&
+          newStart < appointmentEnd) ||
+        a.startHour === startHour
+      ) {
+        throw new BadRequestException(
+          `Provider already has an appointment at ${startHour}`,
+        );
+      }
+    }
   }
   private timeToMinutes(time?: string | null): number | null {
-  if (!time) return null;
+    if (!time) return null;
 
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-}
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
 
   private formatDateDDMMYYYY(date: Date | string): string {
     const d = new Date(date);
@@ -587,17 +605,17 @@ if (!hasService) {
     return { start, end };
   }
   ///---------Nodemailer helper (creacion de un appointment)-------
-private async newAppointmentEmailProvider (
-  email:string,
-  clientName:string,
-  providerName:string,
-  serviceName:string,
-  date:string,
-  time:string,
-  address:string
-){ 
-  const subject = 'Tienes una nueva solicitud de turno en CleenGo🧼 ';
-  const html = `
+  private async newAppointmentEmailProvider(
+    email: string,
+    clientName: string,
+    providerName: string,
+    serviceName: string,
+    date: string,
+    time: string,
+    address: string,
+  ) {
+    const subject = 'Tienes una nueva solicitud de turno en CleenGo🧼 ';
+    const html = `
   <!DOCTYPE html>
   <html lang="es">
     <head>
@@ -672,12 +690,12 @@ private async newAppointmentEmailProvider (
     </body>
   </html>
   `;
-  const text = `¡Hola, ${providerName}!
+    const text = `¡Hola, ${providerName}!
 Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
 
     try {
       this.nodemailerService.sendMail({
-        to:email,
+        to: email,
         subject,
         html,
         text,
@@ -687,15 +705,14 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
         `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
       );
     }
-
-}
-//---------Nodemailer helper (mail recordatorio de un appointment pendiente)-------
-private async pendingAppointmentEmail(
-  email:string, 
-  providerName:string, 
-  pendingCount: number,
-  ){
-  const html = `
+  }
+  //---------Nodemailer helper (mail recordatorio de un appointment pendiente)-------
+  private async pendingAppointmentEmail(
+    email: string,
+    providerName: string,
+    pendingCount: number,
+  ) {
+    const html = `
     <!DOCTYPE html>
   <html lang="es">
     <head>
@@ -762,12 +779,12 @@ private async pendingAppointmentEmail(
   </html>
   `;
 
-  const text = `¡Hola, ${providerName}! Tienes ${pendingCount} servicio${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} de confirmación.`;
+    const text = `¡Hola, ${providerName}! Tienes ${pendingCount} servicio${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} de confirmación.`;
 
     try {
       this.nodemailerService.sendMail({
-        to:email,
-        subject:'Acción requerida – Servicios pendientes',
+        to: email,
+        subject: 'Acción requerida – Servicios pendientes',
         html,
         text,
       });
@@ -776,11 +793,15 @@ private async pendingAppointmentEmail(
         `❌ Error enviando email nueva cita a ${email}: ${error.message}`,
       );
     }
-}
+  }
 
-private async upcommingAppointmentProvider (providerName:string, providerEmail:string, upcommingAppointments:Appointment[]){
-  const subject = `⏰ Recordatorio: tenés un servicio mañana`;
-  const html = `
+  private async upcommingAppointmentProvider(
+    providerName: string,
+    providerEmail: string,
+    upcommingAppointments: Appointment[],
+  ) {
+    const subject = `⏰ Recordatorio: tenés un servicio mañana`;
+    const html = `
   <!DOCTYPE html>
   <html lang="es">
     <head>
@@ -857,21 +878,27 @@ private async upcommingAppointmentProvider (providerName:string, providerEmail:s
     </body>
   </html>
   `;
-  const text = `Hola ${providerName}, te recordamos que manana tenes un servicio. Por favor, asegurate de presentarte en la fecha y horario indicados. Gracias por tu compromiso.`
-  try{
-    this.nodemailerService.sendMail({
-      to:providerEmail,
-      subject,
-      html,
-      text
-    });
-  } catch(error:any){
-    this.logger.error(`❌ Error enviando email recordatorio a ${providerEmail}: ${error.message}`);
+    const text = `Hola ${providerName}, te recordamos que manana tenes un servicio. Por favor, asegurate de presentarte en la fecha y horario indicados. Gracias por tu compromiso.`;
+    try {
+      this.nodemailerService.sendMail({
+        to: providerEmail,
+        subject,
+        html,
+        text,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Error enviando email recordatorio a ${providerEmail}: ${error.message}`,
+      );
+    }
   }
-}
-private async upcommingAppointmentClient ( clientName:string, clientEmail:string, upcommingAppointments:Appointment[]){
-  const subject = `⏰ Recordatorio: tu servicio es mañana`
-  const html = `<!DOCTYPE html>
+  private async upcommingAppointmentClient(
+    clientName: string,
+    clientEmail: string,
+    upcommingAppointments: Appointment[],
+  ) {
+    const subject = `⏰ Recordatorio: tu servicio es mañana`;
+    const html = `<!DOCTYPE html>
   <html lang="es">
     <head>
       <meta charset="UTF-8" />
@@ -947,19 +974,18 @@ private async upcommingAppointmentClient ( clientName:string, clientEmail:string
   </html>
   `;
 
-  const text = `Hola ${clientName},
-Te recordamos que mañana tienes programado${upcommingAppointments.length > 1 ? 's' : ''} servicio${upcommingAppointments.length > 1 ? 's' : ''}`
+    const text = `Hola ${clientName},
+Te recordamos que mañana tienes programado${upcommingAppointments.length > 1 ? 's' : ''} servicio${upcommingAppointments.length > 1 ? 's' : ''}`;
 
-
-try{
-  this.nodemailerService.sendMail({
-    to: clientEmail,
-    subject: subject,
-    html: html,
-    text: text,
-  });
-  } catch (error) {
-  this.logger.error(`Error al enviar el correo a ${clientEmail}:`, error);
-}
-}
+    try {
+      this.nodemailerService.sendMail({
+        to: clientEmail,
+        subject: subject,
+        html: html,
+        text: text,
+      });
+    } catch (error) {
+      this.logger.error(`Error al enviar el correo a ${clientEmail}:`, error);
+    }
+  }
 }
