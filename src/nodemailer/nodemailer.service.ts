@@ -50,12 +50,33 @@ export class NodemailerService {
       );
       return res;
     } catch (err: any) {
-      this.logger.error(
-        `❌ Error enviando email (SendGrid) a ${to}: ${err?.message || err}`,
-      );
-      if (err?.response?.body)
-        this.logger.error(JSON.stringify(err.response.body));
-      throw err;
-    }
+  const sgMessage =
+    err?.response?.body?.errors?.[0]?.message ||
+    err?.message ||
+    'Unknown SendGrid error';
+
+  this.logger.error(
+    `❌ Error enviando email (SendGrid) a ${to}: ${sgMessage}`,
+  );
+
+  // 🔑 CASO CLAVE: límite de créditos
+  if (
+    typeof sgMessage === 'string' &&
+    sgMessage.toLowerCase().includes('maximum credits exceeded')
+  ) {
+    this.logger.warn('🚫 Límite diario de SendGrid alcanzado. Skip email.');
+    return {
+      ok: false,
+      reason: 'SENDGRID_CREDITS_EXCEEDED',
+    };
+  }
+
+  // Otros errores (puedes decidir si los relanzas o no)
+  return {
+    ok: false,
+    reason: 'SENDGRID_ERROR',
+    detail: sgMessage,
+  };
+}
   }
 }

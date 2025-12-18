@@ -15,7 +15,7 @@ export class AppointmentsCronService {
         console.log('Cron: enviando emails de citas pendientes...');
         await this.appointmentsService.validatePendingAppointments();
     }
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_DAY_AT_11AM)
     async handleUpcomingAppointments() {
         console.log('Cron: enviando emails de citas proximas...');
         try{
