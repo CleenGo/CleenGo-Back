@@ -10,7 +10,7 @@ export class AppointmentsCronService {
         private readonly appointmentsService: AppointmentsService
     ){}
 
-    @Cron(CronExpression.EVERY_5_MINUTES)
+    @Cron(CronExpression.EVERY_30_MINUTES_BETWEEN_9AM_AND_5PM)
     async handlependingAppointments() {
         console.log('Cron: enviando emails de citas pendientes...');
         await this.appointmentsService.validatePendingAppointments();
