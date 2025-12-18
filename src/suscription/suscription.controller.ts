@@ -159,4 +159,15 @@ export class SuscriptionController {
       },
     };
   }
+
+  // TEMPORAL: Endpoint para activar manualmente la suscripción premium
+  @Post('activate-premium/:providerId')
+  async activatePremium(@Param('providerId') providerId: string) {
+    if (!providerId) {
+      throw new BadRequestException('providerId is required');
+    }
+
+    const result = await this.subscriptionService.manuallyActivatePremium(providerId);
+    return result;
+  }
 }

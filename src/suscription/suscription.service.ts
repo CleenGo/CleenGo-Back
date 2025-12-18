@@ -99,4 +99,62 @@ export class SuscriptionService {
       relations: ['provider', 'plan'],
     });
   }
+
+  // Método temporal para activar manualmente la suscripción premium
+  async manuallyActivatePremium(providerId: string) {
+    const provider = await this.providerRepo.findOne({
+      where: { id: providerId },
+      relations: ['suscription'],
+    });
+
+    if (!provider) {
+      throw new NotFoundException('Provider not found');
+    }
+
+    let subscription = await this.subscriptionRepo.findOne({
+      where: { provider: { id: providerId } },
+      relations: ['provider', 'plan'],
+    });
+
+    // Si no existe suscripción, crear una nueva con plan Premium
+    if (!subscription) {
+      const premiumPlan = await this.planRepo.findOne({ where: { name: 'Premium' } });
+      if (!premiumPlan) {
+        throw new NotFoundException('Premium plan not found');
+      }
+
+      subscription = this.subscriptionRepo.create({
+        provider,
+        plan: premiumPlan,
+        paymentStatus: true,
+        isActive: true,
+        startDate: new Date(),
+      });
+    } else {
+      // Si existe, solo actualizar los campos
+      subscription.paymentStatus = true;
+      subscription.isActive = true;
+
+      // Si no tiene plan asignado, asignar Premium
+      if (!subscription.plan) {
+        const premiumPlan = await this.planRepo.findOne({ where: { name: 'Premium' } });
+        if (premiumPlan) {
+          subscription.plan = premiumPlan;
+        }
+      }
+    }
+
+    await this.subscriptionRepo.save(subscription);
+
+    return {
+      success: true,
+      message: 'Suscripción premium activada manualmente',
+      subscription: {
+        id: subscription.id,
+        paymentStatus: subscription.paymentStatus,
+        isActive: subscription.isActive,
+        plan: subscription.plan?.name,
+      },
+    };
+  }
 }
