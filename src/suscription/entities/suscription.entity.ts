@@ -15,7 +15,7 @@ export class Suscription {
    @JoinColumn({name: 'provider_id'})
    provider: Provider;
 
-   @Column({type: 'date', nullable: false})
+   @Column({type: 'date', nullable: true})
    startDate: Date;
 
    @Column({type: 'boolean', default: false})

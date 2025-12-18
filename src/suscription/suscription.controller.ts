@@ -1,13 +1,17 @@
 import {
   Controller,
   Post,
-  Body,
+  Get,
+  Query,
   Req,
+  Res,
   Headers,
+  Body,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
-import Stripe from 'stripe';
 import { SuscriptionService } from './suscription.service';
+import Stripe from 'stripe';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 
 @Controller('subscription')
@@ -18,60 +22,106 @@ export class SuscriptionController {
 
   constructor(private readonly subscriptionService: SuscriptionService) {}
 
-  // ================================
-  // 1️⃣ CREAR CHECKOUT SESSION (Swagger / Front)
-  // ================================
   @Post('create-checkout-session')
   async createCheckout(@Body() body: CreateCheckoutDto) {
     const { providerId } = body;
-
-    if (!providerId) {
-      throw new BadRequestException('providerId is required');
-    }
-
+    if (!providerId) throw new BadRequestException('providerId is required');
     return this.subscriptionService.createCheckoutSession(providerId);
   }
 
-  // ================================
-  // 2️⃣ WEBHOOK STRIPE (PAGO ÚNICO)
-  // ================================
+  @Get('verify-session')
+  async verifySession(@Query('session_id') sessionId: string) {
+    if (!sessionId) {
+      throw new BadRequestException('session_id is required');
+    }
+
+    try {
+      const session = await this.stripe.checkout.sessions.retrieve(sessionId);
+
+      console.log('📋 Verificando sesión:', {
+        id: session.id,
+        payment_status: session.payment_status,
+        customer_email: session.customer_email,
+      });
+
+      if (session.payment_status === 'paid') {
+        const email = session.customer_email;
+        if (!email) {
+          throw new BadRequestException('No email in session');
+        }
+
+        const provider =
+          await this.subscriptionService.findProviderByEmail(email);
+        if (!provider) {
+          throw new NotFoundException('Provider not found');
+        }
+
+        const subscription =
+          await this.subscriptionService.findSubscriptionByProviderId(
+            provider.id,
+          );
+
+        return {
+          success: true,
+          paymentStatus: session.payment_status,
+          subscription: {
+            isActive: subscription?.isActive || false,
+            paymentStatus: subscription?.paymentStatus || false,
+            plan: subscription?.plan?.name || null,
+          },
+        };
+      }
+
+      return {
+        success: false,
+        paymentStatus: session.payment_status,
+        message: 'Payment not completed',
+      };
+    } catch (error) {
+      console.error('❌ Error verifying session:', error);
+      throw new BadRequestException('Error verifying payment session');
+    }
+  }
+
   @Post('webhook')
   async stripeWebhook(
     @Req() req: any,
+    @Res() res: any,
     @Headers('stripe-signature') signature: string,
   ) {
-    console.log('🚨 Webhook hit');
+    console.log('🎯 Body type:', typeof req.body);
+    console.log('🎯 Is Buffer?', Buffer.isBuffer(req.body));
 
     let event: Stripe.Event;
 
     try {
       event = this.stripe.webhooks.constructEvent(
-        req.body, // ⚠️ BODY CRUDO (BUFFER)
+        req.body,
         signature,
-        'whsec_c3634c0d9576a57a95796b7e42b1a7c8969da1746a52bed333e467b297d60d68',
+        process.env.STRIPE_WEBHOOK_SECRET!,
       );
     } catch (err: any) {
-      console.log('❌ Webhook error:', err.message);
-      return { received: false };
+      console.error('========================================');
+      console.error('❌ ERROR DE VERIFICACIÓN');
+      console.error('Mensaje:', err.message);
+      console.error('========================================');
+      return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    console.log('👉 Evento recibido:', event.type);
+    console.log('✅ Evento verificado:', event.type);
 
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log('👉 Metadata:', paymentIntent.metadata);
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session;
 
-      const providerId = paymentIntent.metadata?.providerId;
-
-      if (!providerId) {
-        console.log('❌ providerId no vino en metadata');
-        return { received: true };
+      try {
+        await this.subscriptionService.confirmPayment(session);
+        console.log('✅ Pago confirmado en BD');
+      } catch (error) {
+        console.error('❌ Error al confirmar pago:', error);
+        return res.status(500).send('Error processing payment');
       }
-
-      await this.subscriptionService.activatePremium(providerId);
-      console.log('✅ Premium activado para provider:', providerId);
     }
 
-    return { received: true };
+    return res.status(200).json({ received: true });
   }
 }

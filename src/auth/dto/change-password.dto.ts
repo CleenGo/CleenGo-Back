@@ -1,3 +1,4 @@
+//src/auth/dto/change-password.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
