@@ -78,10 +78,41 @@ export class AdminService {
       where.isActive = query.status === 'active';
     }
 
+    // helper para “enriquecer” providers con suscripción
+    const attachProviderSuscriptions = async (rawUsers: any[]) => {
+      const providerIds = rawUsers
+        .filter((u) => u.role === Role.PROVIDER)
+        .map((u) => u.id);
+
+      if (!providerIds.length) return rawUsers;
+
+      const suscriptions = await this.suscriptionRepository.find({
+        where: {
+          provider: { id: In(providerIds) },
+        },
+        relations: ['plan', 'provider'],
+      });
+
+      const map = new Map<string, Suscription>();
+      suscriptions.forEach((s) => {
+        if (s?.provider?.id) map.set(s.provider.id, s);
+      });
+
+      return rawUsers.map((u) => {
+        if (u.role !== Role.PROVIDER) return u;
+        return {
+          ...u,
+          suscription: map.get(u.id) ?? null,
+        };
+      });
+    };
+
+    // ======================
+    // BÚSQUEDA (name OR email)
+    // ======================
     if (query.search) {
-      // búsqueda por nombre o email (ILIKE)
-      // TypeORM no permite OR directo en un solo where, entonces usamos array de where
       const base = { ...where };
+
       const whereArr = [
         { ...base, name: ILike(`%${query.search}%`) },
         { ...base, email: ILike(`%${query.search}%`) },
@@ -95,15 +126,19 @@ export class AdminService {
       });
 
       const safe = users.map(({ passwordUrl, ...u }) => u);
+      const enriched = await attachProviderSuscriptions(safe);
 
       return {
         total,
         page,
         totalPages: Math.ceil(total / limit),
-        users: safe,
+        users: enriched,
       };
     }
 
+    // ======================
+    // LISTA NORMAL
+    // ======================
     const [users, total] = await this.userRepository.findAndCount({
       where,
       skip,
@@ -112,12 +147,13 @@ export class AdminService {
     });
 
     const safe = users.map(({ passwordUrl, ...u }) => u);
+    const enriched = await attachProviderSuscriptions(safe);
 
     return {
       total,
       page,
       totalPages: Math.ceil(total / limit),
-      users: safe,
+      users: enriched,
     };
   }
 
