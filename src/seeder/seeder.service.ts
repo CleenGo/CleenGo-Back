@@ -1,3 +1,4 @@
+//CleenGo-Back/src/seeder/seeder.service.ts
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -44,7 +45,7 @@ export class SeedService implements OnApplicationBootstrap {
     console.log('Planes iniciales creados');
   }
 
-    async seedCategory() {
+  async seedCategory() {
     const count = await this.categoryRepository.count();
     if (count > 0) return; // evitar duplicados
 
@@ -63,9 +64,9 @@ export class SeedService implements OnApplicationBootstrap {
     console.log('✔ Categorías iniciales creadas');
   }
 
-    async seedServices() {
+  async seedServices() {
     const count = await this.serviceRepository.count();
-    
+
     if (count > 0) return; // evitar duplicados
 
     // Obtener las categorías
@@ -77,49 +78,51 @@ export class SeedService implements OnApplicationBootstrap {
     });
 
     if (!limpieza || !jardineria) {
-      console.error('❌ Las categorías no fueron encontradas. Corre primero el seed de categorías.');
+      console.error(
+        '❌ Las categorías no fueron encontradas. Corre primero el seed de categorías.',
+      );
       return;
     }
 
     const services = [
-  // =========================
-  // LIMPIEZA – AIRBNB
-  // =========================
-  {
-    name: 'Limpieza de mantenimiento (Check-out Airbnb)',
-    unitaryPrice: 8000,
-    category: limpieza,
-  },
-  {
-    name: 'Limpieza profunda',
-    unitaryPrice: 14000,
-    category: limpieza,
-  },
-  {
-    name: 'Limpieza integral / especial',
-    unitaryPrice: 20000,
-    category: limpieza,
-  },
+      // =========================
+      // LIMPIEZA – AIRBNB
+      // =========================
+      {
+        name: 'Limpieza de mantenimiento (Check-out Airbnb)',
+        unitaryPrice: 8000,
+        category: limpieza,
+      },
+      {
+        name: 'Limpieza profunda',
+        unitaryPrice: 14000,
+        category: limpieza,
+      },
+      {
+        name: 'Limpieza integral / especial',
+        unitaryPrice: 20000,
+        category: limpieza,
+      },
 
-  // =========================
-  // JARDINERÍA – AIRBNB
-  // =========================
-  {
-    name: 'Mantenimiento básico de jardín',
-    unitaryPrice: 6000,
-    category: jardineria,
-  },
-  {
-    name: 'Mantenimiento integral de jardín',
-    unitaryPrice: 11000,
-    category: jardineria,
-  },
-  {
-    name: 'Puesta en valor / jardinería intensiva',
-    unitaryPrice: 18000,
-    category: jardineria,
-  },
-];
+      // =========================
+      // JARDINERÍA – AIRBNB
+      // =========================
+      {
+        name: 'Mantenimiento básico de jardín',
+        unitaryPrice: 6000,
+        category: jardineria,
+      },
+      {
+        name: 'Mantenimiento integral de jardín',
+        unitaryPrice: 11000,
+        category: jardineria,
+      },
+      {
+        name: 'Puesta en valor / jardinería intensiva',
+        unitaryPrice: 18000,
+        category: jardineria,
+      },
+    ];
 
     const created = this.serviceRepository.create(services);
     await this.serviceRepository.save(created);
