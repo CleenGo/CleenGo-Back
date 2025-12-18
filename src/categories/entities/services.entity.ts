@@ -1,3 +1,4 @@
+//CleenGo-Back/src/categories/entities/services.entity.ts
 import {
   Column,
   Entity,
@@ -25,7 +26,6 @@ export class Service {
   @ManyToOne(() => Category, (category) => category.services)
   @JoinColumn({ name: 'categoryId' })
   category: Category;
-
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
