@@ -1,9 +1,14 @@
-
-import { BadRequestException, Injectable, NotFoundException, UseGuards } from '@nestjs/common';
+//CleenGo-Back/src/provider/provider.service.ts
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UseGuards,
+} from '@nestjs/common';
 import { RegisterProviderDto } from './dto/create-provider.dto';
 import { UpdateProviderDto } from './dto/update-provider.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository ,Like, In } from 'typeorm';
+import { Repository, Like, In } from 'typeorm';
 import { Provider } from './entities/provider.entity';
 import { Role } from 'src/enum/role.enum';
 import { Review } from 'src/reviews/entities/review.entity';
@@ -11,104 +16,105 @@ import { Appointment } from 'src/appointments/entities/appointment.entity';
 import { Service } from 'src/categories/entities/services.entity';
 @Injectable()
 export class ProviderService {
+  constructor(
+    @InjectRepository(Provider)
+    private readonly serviceprovider: Repository<Provider>,
 
-  constructor(@InjectRepository (Provider)
-  private readonly serviceprovider :Repository<Provider>,
+    @InjectRepository(Appointment)
+    private readonly appoimentService: Repository<Appointment>,
 
-  @InjectRepository(Appointment)
-  private readonly appoimentService :Repository<Appointment>,
-
-  @InjectRepository(Service)
-  private readonly serviceRepository :Repository<Service>
-
-  
-){}
+    @InjectRepository(Service)
+    private readonly serviceRepository: Repository<Service>,
+  ) {}
 
   async findAll() {
-    return  this.serviceprovider.find({where: { isActive: true }  });
+    return this.serviceprovider.find({ where: { isActive: true } });
   }
 
-  async findOne(id:string ) {
-  const provider = await this.serviceprovider.findOne({
+  async findOne(id: string) {
+    const provider = await this.serviceprovider.findOne({
       where: { id },
       //relations:['category','schedule']
     });
 
-    if (!provider|| provider.isActive === false) {
+    if (!provider || provider.isActive === false) {
       throw new NotFoundException(`Service provider with ID ${id} not found`);
     }
 
     return provider;
   }
 
-
- async update(id: string, dto: UpdateProviderDto) {
-  const provider = await this.serviceprovider.findOne({
-    where: { id },
-    relations: ['services'],
-  });
-
-  if (!provider) {
-    throw new NotFoundException(`El proveedor con id ${id} no existe`);
-  }
-
-  // 👉 columnas simples
-  const { services, ...providerData } = dto;
-  Object.assign(provider, providerData);
-
-  // 👉 relación ManyToMany
-  if (services) {
-    const providerServices = await this.serviceRepository.findBy({
-      name: In(services),
+  async update(id: string, dto: UpdateProviderDto) {
+    const provider = await this.serviceprovider.findOne({
+      where: { id },
+      relations: ['services'],
     });
 
-    provider.services = providerServices;
+    if (!provider) {
+      throw new NotFoundException(`El proveedor con id ${id} no existe`);
+    }
+
+    // 👉 columnas simples
+    const { services, ...providerData } = dto;
+    Object.assign(provider, providerData);
+
+    // 👉 relación ManyToMany
+    if (services) {
+      const providerServices = await this.serviceRepository.findBy({
+        name: In(services),
+      });
+
+      provider.services = providerServices;
+    }
+
+    return await this.serviceprovider.save(provider);
   }
 
-  return await this.serviceprovider.save(provider);
-}
+  async remove(id: string) {
+    const provider = await this.serviceprovider.findOne({ where: { id } });
 
+    if (!provider) {
+      throw new NotFoundException(`El proveedor con id ${id} no existe`);
+    }
+    provider.isActive = false;
 
-
-async remove(id: string) {
-  const provider = await this.serviceprovider.findOne({ where: {  id } });
-
-  if (!provider) {
-    throw new NotFoundException(`El proveedor con id ${id} no existe`);
-  }
-  provider.isActive = false;
-
-  return await this.serviceprovider.save(provider);
-}
-
-
-async filterProviders(filters: { day?: string; hour?: string; category?: string; services?: string }) {
-  const { day, hour, category, services } = filters;
-  
-  const query = this.serviceprovider
-    .createQueryBuilder('provider')
-    .where('provider.isActive = :active', { active: true });
-
-  if (day) {
-    query.andWhere(':day = ANY(provider.days)', { day });
+    return await this.serviceprovider.save(provider);
   }
 
-  if (hour) {
-    query.andWhere(':hour = ANY(provider.hours)', { hour });
+  async filterProviders(filters: {
+    day?: string;
+    hour?: string;
+    category?: string;
+    services?: string;
+  }) {
+    const { day, hour, category, services } = filters;
+
+    const query = this.serviceprovider
+      .createQueryBuilder('provider')
+      .where('provider.isActive = :active', { active: true });
+
+    if (day) {
+      query.andWhere(':day = ANY(provider.days)', { day });
+    }
+
+    if (hour) {
+      query.andWhere(':hour = ANY(provider.hours)', { hour });
+    }
+
+    if (filters.category) {
+      query.andWhere('provider.category.name = :category', { category });
+    }
+
+    if (filters.services) {
+      query.andWhere(':services = ANY(provider.services.name)', {
+        services: `%${services}%`,
+      });
+    }
+
+    return query.getMany();
   }
 
-  if (filters.category) {
-    query.andWhere('provider.category.name = :category', { category });
-  }
-
-  if(filters.services){
-    query.andWhere(':services = ANY(provider.services.name)', { services: `%${services}%` });
-  }
-
-  return query.getMany();
-}
-
-/*     async dashboard(user){
+  /*     async dashboard(user){
     const provider = await this.serviceprovider.findOne({
       where: { userId: user.userId},
       relations:['category','schedule']
@@ -143,7 +149,7 @@ async filterProviders(filters: { day?: string; hour?: string; category?: string;
 }
    */
 
-/* 
+  /* 
   async search(name?: string, category?: string) {
     const where: any = {where: { isActive: true }};
 
@@ -164,7 +170,7 @@ async filterProviders(filters: { day?: string; hour?: string; category?: string;
     });
   }
  */
-/* async filterProviders(filters: {
+  /* async filterProviders(filters: {
   days?: string[];
   hours?: string[];
   agendaDays?: string[];
@@ -216,8 +222,7 @@ async filterProviders(filters: { day?: string; hour?: string; category?: string;
   return await query.getMany();
 } */
 
-
-/* async filterProviders(filters: {
+  /* async filterProviders(filters: {
   days?: string[];
   hours?: string[];
   services?: string[];
@@ -258,6 +263,4 @@ async filterProviders(filters: { day?: string; hour?: string; category?: string;
   return query.getMany();
 }
  */
-
-
 }

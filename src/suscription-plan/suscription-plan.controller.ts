@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards } from '@nestjs/common';
+//CleenGo-Back/src/suscription-plan/suscription-plan.controller.ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { SuscriptionPlanService } from './suscription-plan.service';
 import { CreatePlanDto } from './dto/create-suscription-plan.dto';
 import { UpdatePlanDto } from './dto/update-suscription-plan.dto';
@@ -10,7 +20,9 @@ import { AuthGuard } from '@nestjs/passport';
 
 @Controller('plan')
 export class SuscriptionPlanController {
-  constructor(private readonly suscriptionPlanService: SuscriptionPlanService) {}
+  constructor(
+    private readonly suscriptionPlanService: SuscriptionPlanService,
+  ) {}
 
   @Roles(Role.ADMIN)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,7 +43,10 @@ export class SuscriptionPlanController {
   @Roles(Role.ADMIN)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateSuscriptionPlanDto: UpdatePlanDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateSuscriptionPlanDto: UpdatePlanDto,
+  ) {
     return this.suscriptionPlanService.update(id, updateSuscriptionPlanDto);
   }
 

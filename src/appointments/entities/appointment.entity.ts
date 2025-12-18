@@ -1,3 +1,4 @@
+//CleenGo-Back/src/appointments/entities/appointment.entity.ts
 import { Service } from 'src/categories/entities/services.entity';
 import { User } from 'src/user/entities/user.entity';
 import {
@@ -24,13 +25,11 @@ export class Appointment {
   @JoinColumn({ name: 'provider_id' })
   providerId: User;
 
-
-
   @ManyToOne(() => Service)
-  @JoinColumn({name: 'services_id'})
+  @JoinColumn({ name: 'services_id' })
   services: Service;
 
-  @Column({type: 'text', nullable: true})
+  @Column({ type: 'text', nullable: true })
   notes: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })

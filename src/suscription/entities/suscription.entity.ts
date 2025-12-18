@@ -1,3 +1,4 @@
+//CleenGo-Back/src/suscription/entities/suscription.entity.ts
 import { Provider } from 'src/provider/entities/provider.entity';
 import {
   Column,
