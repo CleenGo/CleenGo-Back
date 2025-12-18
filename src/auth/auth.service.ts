@@ -157,7 +157,7 @@ export class AuthService {
     if (emailExtension === 'cleengo.com') {
       role = Role.ADMIN;
     } else {
-      role = Role.CLIENT;
+      role = Role.PROVIDER;
     }
 
     if (existingUser)

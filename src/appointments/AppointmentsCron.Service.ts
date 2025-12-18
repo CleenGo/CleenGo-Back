@@ -10,14 +10,14 @@ export class AppointmentsCronService {
         private readonly appointmentsService: AppointmentsService
     ){}
 
-    // @Cron(CronExpression.EVERY_5_MINUTES)
-//     async handleAppointmentsUpdate() {
-//         console.log('Cron: enviando emails de citas pendientes...');
-//         await this.appointmentsService.validatePendingAppointments();
-//     }
-    @Cron(CronExpression.EVERY_DAY_AT_9AM)
-    async handleAppointmentsUpdate() {
+    @Cron(CronExpression.EVERY_5_MINUTES)
+    async handlependingAppointments() {
         console.log('Cron: enviando emails de citas pendientes...');
+        await this.appointmentsService.validatePendingAppointments();
+    }
+    @Cron(CronExpression.EVERY_5_MINUTES)
+    async handleUpcomingAppointments() {
+        console.log('Cron: enviando emails de citas proximas...');
         try{
             await this.appointmentsService.upcommingAppointments();
         }catch(error) {
