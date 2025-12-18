@@ -11,7 +11,7 @@ async function bootstrap() {
     rawBody: true, // ← Importante para webhooks
   });
   app.use('/subscription/webhook', express.raw({ type: 'application/json' }));
-
+  
   app.use(
     json({
       verify: (req: any, res, buf) => {
@@ -28,21 +28,22 @@ async function bootstrap() {
 
   //Configurar swagger
   const config = new DocumentBuilder()
-    .setTitle('CleenGo API')
-    .setDescription('Documentación de la API de CleenGo')
-    .setVersion('1.0.0')
-    .addBearerAuth()
+  .setTitle('CleenGo API')
+  .setDescription('Documentación de la API de CleenGo')
+  .setVersion('1.0.0')
+  .addBearerAuth()
     .build();
 
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-
+  
   SwaggerModule.setup('api', app, documentFactory()); //http://localhost:3000/api
-
+  
   await app.listen(process.env.PORT ?? 3000);
   try {
     console.log(
       `🚀 Servidor is running on http://localhost:${process.env.PORT ?? 3000}`,
     );
+  
   } catch (error) {
     console.error('⚠️ Error al iniciar el servidor:', error);
   }

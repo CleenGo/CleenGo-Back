@@ -451,9 +451,9 @@ export class AppointmentsService {
           status: AppointmentStatus.CONFIRMEDPROVIDER,
           providerId: { id: providerId },
         },
-        relations: ['client', 'provider', 'service'],
+        relations: ['clientId', 'providerId', 'services'],
       });
-
+      
       if (appointments.length > 0) {
         this.upcommingAppointmentProvider(
           provider.name,
@@ -477,7 +477,7 @@ export class AppointmentsService {
           status: AppointmentStatus.CONFIRMEDPROVIDER,
           clientId: { id: clientId },
         },
-        relations: ['client', 'provider', 'service'],
+        relations: ['clientId', 'providerId', 'services'],
       });
 
       if (appointments.length > 0) {
@@ -509,7 +509,6 @@ export class AppointmentsService {
 
     day = day.charAt(0).concat(day.slice(1).toLowerCase());
 
-    day = day.charAt(0).concat(day.slice(1).toLowerCase());
 
     if (!provider.days?.includes(day)) {
       throw new BadRequestException(`Provider does not work on ${day}`);
@@ -597,10 +596,12 @@ export class AppointmentsService {
 
     const start = new Date(now);
     start.setDate(start.getDate() + 1);
+    
     start.setHours(0, 0, 0, 0);
 
     const end = new Date(start);
     end.setHours(23, 59, 59, 999);
+    
 
     return { start, end };
   }
@@ -842,7 +843,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                         (a) => `
                         <tr>
                           <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
-                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services.name}</strong></p>
                             <p style="margin: 2px 0;">👤 Cliente: ${a.clientId.name}</p>
                             <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
                             <p style="margin: 2px 0;">📍 ${a.addressUrl}</p>
@@ -938,7 +939,7 @@ Tienes una nueva soliciitud de servicio pendiente en CleenGo.`;
                         (a) => `
                         <tr>
                           <td style="padding: 12px; border-bottom: 1px solid #e0e0e0;">
-                            <p style="margin: 2px 0;"><strong>🧾 ${a.services}</strong></p>
+                            <p style="margin: 2px 0;"><strong>🧾 ${a.services.name}</strong></p>
                             <p style="margin: 2px 0;">👤 Proveedor: ${a.providerId.name}</p>
                             <p style="margin: 2px 0;">⏰ ${a.startHour}</p>
                           </td>
